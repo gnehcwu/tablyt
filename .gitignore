@@ -8,13 +8,14 @@ pnpm-debug.log*
 lerna-debug.log*
 
 node_modules
-dist
-dist-ssr
-*.local
-.parcel-cache/
+.output
+stats.html
+stats-*.json
+.wxt
+web-ext.config.ts
 
 # Editor directories and files
-.vscode/
+.vscode/*
 !.vscode/extensions.json
 .idea
 .DS_Store

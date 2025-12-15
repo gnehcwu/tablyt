@@ -1,13 +1,12 @@
-# Bookmarks palette extension
+# Tablyt
 
-Search and navigate bookmarks by title, domain with a simple command palette interface.
+Browser extension that lets you quickly access tabs, bookmarks, and browser actions through a command-palette interface.
 
 ![preview](./preview.png)
 
 ## Features
 
-- 🔍 Search bookmarks by title & domain with a simple command palette interface
-- 🥪 With favicon and folder information
-- 🔤 Always ready for input
-- 🗺️ Mouse free navigation
-- 🌙 Dark mode
+- Quickly switch between open tabs
+- Fuzzy search all saved bookmarks
+- Easy access to browser actions
+- Dark mode

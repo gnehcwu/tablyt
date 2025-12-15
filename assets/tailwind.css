@@ -1,0 +1,282 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  
+  /* Override font sizes to use px instead of rem */
+  --font-size-xs: 12px;
+  --font-size-sm: 14px;
+  --font-size-base: 16px;
+  --font-size-lg: 18px;
+  --font-size-xl: 20px;
+  --font-size-2xl: 24px;
+  --font-size-3xl: 30px;
+  --font-size-4xl: 36px;
+  --font-size-5xl: 48px;
+  --font-size-6xl: 60px;
+  
+  /* Override spacing to use px instead of rem */
+  --spacing-0: 0px;
+  --spacing-px: 1px;
+  --spacing-0_5: 2px;
+  --spacing-1: 4px;
+  --spacing-1_5: 6px;
+  --spacing-2: 8px;
+  --spacing-2_5: 10px;
+  --spacing-3: 12px;
+  --spacing-3_5: 14px;
+  --spacing-4: 16px;
+  --spacing-5: 20px;
+  --spacing-6: 24px;
+  --spacing-7: 28px;
+  --spacing-8: 32px;
+  --spacing-9: 36px;
+  --spacing-10: 40px;
+  --spacing-11: 44px;
+  --spacing-12: 48px;
+  --spacing-14: 56px;
+  --spacing-16: 64px;
+  --spacing-20: 80px;
+  --spacing-24: 96px;
+  --spacing-28: 112px;
+  --spacing-32: 128px;
+  --spacing-36: 144px;
+  --spacing-40: 160px;
+  --spacing-44: 176px;
+  --spacing-48: 192px;
+  --spacing-52: 208px;
+  --spacing-56: 224px;
+  --spacing-60: 240px;
+  --spacing-64: 256px;
+  --spacing-72: 288px;
+  --spacing-80: 320px;
+  --spacing-96: 384px;
+  
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+}
+
+:root {
+  --radius: 0.625rem;
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.145 0 0);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.145 0 0);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.145 0 0);
+  --primary: oklch(0.205 0 0);
+  --primary-foreground: oklch(0.985 0 0);
+  --secondary: oklch(0.97 0 0);
+  --secondary-foreground: oklch(0.205 0 0);
+  --muted: oklch(0.97 0 0);
+  --muted-foreground: oklch(0.556 0 0);
+  --accent: oklch(0.97 0 0);
+  --accent-foreground: oklch(0.205 0 0);
+  --destructive: oklch(0.577 0.245 27.325);
+  --border: oklch(0.922 0 0);
+  --input: oklch(0.922 0 0);
+  --ring: oklch(0.708 0 0);
+  --chart-1: oklch(0.646 0.222 41.116);
+  --chart-2: oklch(0.6 0.118 184.704);
+  --chart-3: oklch(0.398 0.07 227.392);
+  --chart-4: oklch(0.828 0.189 84.429);
+  --chart-5: oklch(0.769 0.188 70.08);
+  --sidebar: oklch(0.985 0 0);
+  --sidebar-foreground: oklch(0.145 0 0);
+  --sidebar-primary: oklch(0.205 0 0);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.97 0 0);
+  --sidebar-accent-foreground: oklch(0.205 0 0);
+  --sidebar-border: oklch(0.922 0 0);
+  --sidebar-ring: oklch(0.708 0 0);
+}
+
+.dark {
+  --background: oklch(0.145 0 0);
+  --foreground: oklch(0.985 0 0);
+  --card: oklch(0.205 0 0);
+  --card-foreground: oklch(0.985 0 0);
+  --popover: oklch(0.205 0 0);
+  --popover-foreground: oklch(0.985 0 0);
+  --primary: oklch(0.922 0 0);
+  --primary-foreground: oklch(0.205 0 0);
+  --secondary: oklch(0.269 0 0);
+  --secondary-foreground: oklch(0.985 0 0);
+  --muted: oklch(0.269 0 0);
+  --muted-foreground: oklch(0.708 0 0);
+  --accent: oklch(0.269 0 0);
+  --accent-foreground: oklch(0.985 0 0);
+  --destructive: oklch(0.704 0.191 22.216);
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 15%);
+  --ring: oklch(0.556 0 0);
+  --chart-1: oklch(0.488 0.243 264.376);
+  --chart-2: oklch(0.696 0.17 162.48);
+  --chart-3: oklch(0.769 0.188 70.08);
+  --chart-4: oklch(0.627 0.265 303.9);
+  --chart-5: oklch(0.645 0.246 16.439);
+  --sidebar: oklch(0.205 0 0);
+  --sidebar-foreground: oklch(0.985 0 0);
+  --sidebar-primary: oklch(0.488 0.243 264.376);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.269 0 0);
+  --sidebar-accent-foreground: oklch(0.985 0 0);
+  --sidebar-border: oklch(1 0 0 / 10%);
+  --sidebar-ring: oklch(0.556 0 0);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+/* Force pixel-based sizing to override rem-based Tailwind classes */
+@layer utilities {
+  /* Font sizes */
+  .text-xs { font-size: 12px !important; }
+  .text-sm { font-size: 14px !important; }
+  .text-base { font-size: 16px !important; }
+  .text-lg { font-size: 18px !important; }
+  .text-xl { font-size: 20px !important; }
+  .text-2xl { font-size: 24px !important; }
+  .text-3xl { font-size: 30px !important; }
+  .text-4xl { font-size: 36px !important; }
+  
+  /* Padding */
+  .p-1 { padding: 4px !important; }
+  .p-2 { padding: 8px !important; }
+  .p-3 { padding: 12px !important; }
+  .p-4 { padding: 16px !important; }
+  
+  /* Hide scrollbar */
+  .scrollbar-hide {
+    -ms-overflow-style: none;  /* Internet Explorer 10+ */
+    scrollbar-width: none;  /* Firefox */
+  }
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;  /* Safari and Chrome */
+  }
+  .p-5 { padding: 20px !important; }
+  .p-6 { padding: 24px !important; }
+  .p-8 { padding: 32px !important; }
+  
+  /* Margins */
+  .m-1 { margin: 4px !important; }
+  .m-2 { margin: 8px !important; }
+  .m-3 { margin: 12px !important; }
+  .m-4 { margin: 16px !important; }
+  .m-5 { margin: 20px !important; }
+  .m-6 { margin: 24px !important; }
+  .m-8 { margin: 32px !important; }
+  
+  /* Width */
+  .w-4 { width: 16px !important; }
+  .w-5 { width: 20px !important; }
+  .w-6 { width: 24px !important; }
+  .w-8 { width: 32px !important; }
+  .w-10 { width: 40px !important; }
+  .w-12 { width: 48px !important; }
+  .w-16 { width: 64px !important; }
+  .w-20 { width: 80px !important; }
+  .w-24 { width: 96px !important; }
+  .w-32 { width: 128px !important; }
+  .w-40 { width: 160px !important; }
+  .w-48 { width: 192px !important; }
+  .w-64 { width: 256px !important; }
+  .w-80 { width: 320px !important; }
+  .w-96 { width: 384px !important; }
+  
+  /* Height */
+  .h-4 { height: 16px !important; }
+  .h-5 { height: 20px !important; }
+  .h-6 { height: 24px !important; }
+  .h-8 { height: 32px !important; }
+  .h-10 { height: 40px !important; }
+  .h-12 { height: 48px !important; }
+  .h-16 { height: 64px !important; }
+  .h-20 { height: 80px !important; }
+  .h-24 { height: 96px !important; }
+  .h-32 { height: 128px !important; }
+  .h-40 { height: 160px !important; }
+  .h-48 { height: 192px !important; }
+  .h-64 { height: 256px !important; }
+  
+  /* Gap */
+  .gap-1 { gap: 4px !important; }
+  .gap-2 { gap: 8px !important; }
+  .gap-3 { gap: 12px !important; }
+  .gap-4 { gap: 16px !important; }
+  .gap-5 { gap: 20px !important; }
+  .gap-6 { gap: 24px !important; }
+  .gap-8 { gap: 32px !important; }
+  
+  /* Rounded corners */
+  .rounded { border-radius: 4px !important; }
+  .rounded-md { border-radius: 6px !important; }
+  .rounded-lg { border-radius: 8px !important; }
+  .rounded-xl { border-radius: 12px !important; }
+}
+
+/* Breathing animation for palette modal */
+@keyframes breathe {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(0.99);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  [data-animate="true"] {
+    animation: breathe 300ms cubic-bezier(0.16, 1, 0.3, 1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-animate="true"] {
+    animation: none;
+  }
+}
