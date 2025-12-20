@@ -28,13 +28,13 @@ function Filter({ value, command, onValueChange }: FilterProps) {
   }, []);
 
   return (
-    <div className="border-b border-neutral-300 dark:border-neutral-600 relative">
+    <div className="border-b border-neutral-300 dark:border-neutral-600 flex items-center gap-x-2 px-5 py-4">
       {command && (
-        <Badge variant="outline" className="border-neutral-300 dark:border-neutral-600 h-5 min-w-5 rounded-full px-1.5 font-mono text-xs text-neutral-500 dark:text-neutral-400 absolute top-4 left-[22px] cursor-default">{command}</Badge>
+        <Badge variant="secondary" className="border-neutral-300 dark:border-neutral-700 text-neutral-800 dark:text-neutral-200 h-5 min-w-5 rounded-full font-mono text-xs  cursor-default">{command}</Badge>
       )}
       <input
         id="filter"
-        className={`dark:text-neutral-300 text-neutral-950 outline-none border-none box-shadow-none focus:outline-none active:outline-none m-4 p-[0px_8px] w-[calc(100%-32px)] bg-transparent text-sm font-mono ${command ? "pl-24" : ""}`}
+        className={`dark:text-neutral-300 text-neutral-950 outline-none border-none box-shadow-none focus:outline-none active:outline-none flex-1 bg-transparent text-sm font-mono`}
         ref={inputRef}
         aria-label="Search"
         placeholder="Type to search..."
@@ -47,7 +47,7 @@ function Filter({ value, command, onValueChange }: FilterProps) {
       />
       {
         !command && (
-          <div className="absolute top-[18px] right-[22px] flex items-center gap-x-2 cursor-default">
+          <div className="items-center gap-x-2 cursor-default hidden sm:flex whitespace-nowrap">
             <span className="text-xs font-mono text-neutral-500 dark:text-neutral-400 hidden sm:block">Search bookmarks</span>
             <Badge variant="outline" className="border-neutral-300 dark:border-neutral-600 h-5 min-w-5 rounded-full px-1.5 font-mono text-xs text-neutral-500 dark:text-neutral-400">Tab</Badge>
           </div>

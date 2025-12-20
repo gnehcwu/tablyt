@@ -27,7 +27,7 @@ import "../assets/tailwind.css";
 
 const getBrowserActionIcon = (icon: React.ReactElement<{ className?: string }>) => {
   return React.cloneElement(icon, {
-    className: "w-5 h-5 rounded-[4px] inline-block dark:text-neutral-300 text-neutral-950",
+    className: "w-5 h-5 rounded-[4px] inline-block dark:text-neutral-200 text-neutral-950",
   });
 };
 

@@ -28,7 +28,7 @@ const EmptyState = memo(() => {
         </EmptyMedia>
         <EmptyTitle className="dark:text-neutral-400 text-neutral-600">No results found</EmptyTitle>
         <EmptyDescription className="dark:text-neutral-400 text-neutral-600">
-          Try a different keyword and try again
+          Try again with a different keyword
         </EmptyDescription>
       </EmptyHeader>
     </Empty>
@@ -65,7 +65,7 @@ function ActionList({ actions, selected, onSelect, onAction }: ActionListProps) 
         >
           <ItemMedia className="self-center!">{icon ? icon : <Favicon url={url!} />}</ItemMedia>
           <ItemContent className="gap-0 flex-1 min-w-0">
-            <ItemTitle className="font-normal text-sm line-clamp-1 wrap-anywhere dark:text-neutral-300 text-neutral-950">
+            <ItemTitle className="font-normal text-sm line-clamp-1 wrap-anywhere dark:text-neutral-200 text-neutral-950">
               {title}
             </ItemTitle>
             <ItemDescription className="font-normal text-xs line-clamp-1 wrap-anywhere text-neutral-500 dark:text-neutral-400">
