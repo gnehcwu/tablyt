@@ -7,6 +7,15 @@ import { Item, ItemTitle, ItemContent, ItemMedia, ItemDescription } from "./ui/i
 import { Shell } from "lucide-react";
 import "../assets/tailwind.css";
 
+const truncateMiddle = (str: string, maxLength: number): string => {
+  if (str.length <= maxLength) return str;
+  const ellipsis = "…";
+  const charsToShow = maxLength - ellipsis.length;
+  const frontChars = Math.ceil(charsToShow / 2);
+  const backChars = Math.floor(charsToShow / 2);
+  return str.slice(0, frontChars) + ellipsis + str.slice(-backChars);
+};
+
 interface ActionListProps {
   actions: ActionItem[];
   selected: number;
@@ -46,8 +55,6 @@ function ActionList({ actions, selected, onSelect, onAction }: ActionListProps) 
     actions: ActionItem[];
   }>) => {
     const action = actions[index];
-
-
     const { title, path, domain, url, icon } = action;
 
     return (
@@ -75,14 +82,11 @@ function ActionList({ actions, selected, onSelect, onAction }: ActionListProps) 
           <ItemContent className="flex-none text-center">
             {path ? (
               <Badge
-                className="border-neutral-300 dark:border-neutral-600 h-5 min-w-5 rounded-full px-1.5 font-mono text-xs max-w-[250px] overflow-hidden whitespace-nowrap relative text-neutral-500 dark:text-neutral-400 hidden sm:block"
+                className="border-neutral-300 dark:border-neutral-600 h-5 min-w-5 rounded-full px-1.5 font-mono text-xs max-w-[250px] overflow-hidden whitespace-nowrap relative text-neutral-500 dark:text-neutral-400 hidden sm:inline-flex items-center justify-center tracking-tighter"
                 variant="outline"
-                style={{
-                  textOverflow: "ellipsis",
-                }}
                 title={path}
               >
-                {path}
+                {truncateMiddle(path, 30)}
               </Badge>
             ) : null}
           </ItemContent>

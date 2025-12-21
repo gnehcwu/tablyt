@@ -3,13 +3,13 @@ import { DEFAULT_MINIMUM_MATCH } from '../constants.ts';
 import { ActionItem } from '../types.ts';
 
 /**
- * Scores action items based on a given pattern.
+ * Scores actions based on a given pattern.
  *
  * @param {Array} items - The array of items to be scored.
  * @param {string} pattern - The pattern to be used for scoring.
  * @returns {Array} - The array of scored items.
  */
-export default function scoreActionItems(
+export default function scoreActions(
   items: ActionItem[],
   pattern: string,
 ): ActionItem[] {
@@ -19,7 +19,12 @@ export default function scoreActionItems(
   return items
     .map((item) => ({
       ...item,
-      score: Math.max(scoreItem(item.title, pattern), scoreItem(item.domain, pattern)),
+      score: Math.max(
+        scoreItem(item.title, pattern),
+        item.domain ? scoreItem(item.domain, pattern) : 0,
+        item.url ? scoreItem(item.url, pattern) : 0,
+        item.path ? scoreItem(item.path, pattern) : 0
+      ),
     }))
     .filter((item) => item.score > 0)
     .sort((a, b) => b.score - a.score);

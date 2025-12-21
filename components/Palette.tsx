@@ -17,7 +17,7 @@ import {
   BP_OPEN_SETTINGS_TAB,
   BP_OPEN_HELP_TAB,
 } from "../utils/constants";
-import scoreActionItems from "../utils/scoring/scoreActionItems";
+import scoreActions from "../utils/scoring/scoreActions";
 import Filter from "./Filter";
 import ActionList from "./ActionList";
 import Footer from "./Footer";
@@ -193,7 +193,7 @@ function Palette() {
   }
 
   function scoreTabsOrBookmarks() {
-    const scoredItems = scoreActionItems(actionListRef.current, search);
+    const scoredItems = scoreActions(actionListRef.current, search);
 
     dispatch({
       type: ACTION_TYPES.SET_SCORED_ITEMS,
