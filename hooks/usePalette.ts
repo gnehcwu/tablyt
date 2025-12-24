@@ -1,13 +1,31 @@
-import { PaletteState, PaletteAction } from '../utils/types';
-import { ACTION_TYPES } from '../utils/constants';
-import { useReducer } from 'react';
+import { ACTION_TYPES } from "../utils/constants";
+import { useReducer } from "react";
+
+export type PaletteState = {
+  open: boolean;
+  search: string;
+  selected: number;
+  scoredActionItems: ActionItem[];
+  command: string;
+  loading: boolean;
+};
+
+export type PaletteAction =
+  | { type: typeof ACTION_TYPES.TOGGLE_PALETTE }
+  | { type: typeof ACTION_TYPES.DISMISS_PALETTE }
+  | { type: typeof ACTION_TYPES.SET_FILTER; payload: string }
+  | { type: typeof ACTION_TYPES.SET_SELECTED; payload: number }
+  | { type: typeof ACTION_TYPES.SET_SCORED_ITEMS; payload: ActionItem[] }
+  | { type: typeof ACTION_TYPES.SET_COMMAND; payload: string }
+  | { type: typeof ACTION_TYPES.SET_LOADING, payload: boolean };
 
 export const INITIAL_STATE: PaletteState = {
   open: false,
-  search: '',
+  search: "",
   selected: 0,
   scoredActionItems: [],
-  command: ''
+  command: "",
+  loading: false
 };
 
 export function paletteReducer(state: PaletteState, action: PaletteAction): PaletteState {
@@ -15,18 +33,18 @@ export function paletteReducer(state: PaletteState, action: PaletteAction): Pale
     case ACTION_TYPES.TOGGLE_PALETTE:
       return {
         ...state,
-        search: '',
+        search: "",
         selected: 0,
         open: !state.open,
-        command: ''
+        command: "",
       };
     case ACTION_TYPES.DISMISS_PALETTE:
       return {
         ...state,
-        search: '',
+        search: "",
         selected: 0,
         open: false,
-        command: '',
+        command: "",
       };
     case ACTION_TYPES.SET_FILTER:
       return {
@@ -48,8 +66,14 @@ export function paletteReducer(state: PaletteState, action: PaletteAction): Pale
       return {
         ...state,
         command: action.payload,
-        search: '',
+        search: "",
         selected: 0,
+        loading: action.payload === ACTION_MODE.HISTORY,
+      };
+    case ACTION_TYPES.SET_LOADING:
+      return {
+        ...state,
+        loading: action.payload,
       };
     default:
       return state;

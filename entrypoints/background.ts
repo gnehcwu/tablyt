@@ -5,13 +5,10 @@ import {
   BP_SEARCH_OPENED_TABS,
   BP_OPEN_TAB,
   BP_DUPLICATE_TAB,
-  BP_OPEN_HISTORY_TAB,
-  BP_OPEN_DOWNLOADS_TAB,
-  BP_OPEN_EXTENSIONS_TAB,
-  BP_OPEN_SETTINGS_TAB,
-  BP_OPEN_HELP_TAB,
-} from "../utils/constants";
-import type { ActionItem } from "../utils/types";
+  BP_SEARCH_HISTORIES,
+  BROWSER_ACTION_URL_MAP,
+} from "@/utils/constants";
+import type { ActionItem } from "@/utils/types";
 
 export default defineBackground(() => {
   function transformBookmarks(
@@ -55,6 +52,28 @@ export default defineBackground(() => {
     }));
   }
 
+  async function getHistories(): Promise<ActionItem[]> {
+    const historyItems = await browser.history.search({
+      text: "",
+      maxResults: 100000,
+      startTime: 0,
+    });
+
+    const processed = new Set<string>();
+    const histories: ActionItem[] = [];
+
+    for (const history of historyItems) {
+      const { title = "", url = "" } = history;
+
+      if (!url || processed.has(url)) continue;
+
+      histories.push({ title, url, domain: new URL(url).hostname });
+      processed.add(url!);
+    }
+
+    return histories;
+  }
+
   /**
    * Get currently active browser tab
    * @returns current active tab
@@ -92,33 +111,37 @@ export default defineBackground(() => {
     (
       request: { action: string; url?: string },
       _,
-      sendResponse: (response: { bookmarks?: ActionItem[]; openerTabId?: number }) => void
+      sendResponse: (response: { items?: ActionItem[]; openerTabId?: number }) => void
     ) => {
       if (request.action === BP_SEARCH_BOOKMARKS) {
         extractBookmarks()
           .then((bookmarks) => {
-            sendResponse({ bookmarks });
+            sendResponse({ items: bookmarks });
           })
           .catch(() => {
-            sendResponse({ bookmarks: [] });
+            sendResponse({ items: [] });
           });
 
-        // To keep message channel alive until response returned
         return true;
-      }
-
-      if (request.action === BP_SEARCH_OPENED_TABS) {
+      } else if (request.action === BP_SEARCH_OPENED_TABS) {
         getOpenedTabs()
           .then((openedTabs) => {
-            sendResponse({ bookmarks: openedTabs });
+            sendResponse({ items: openedTabs });
           })
           .catch(() => {
-            sendResponse({ bookmarks: [] });
+            sendResponse({ items: [] });
           });
 
-        // To keep message channel alive until response returned
+        return true;
+      } else if (request.action === BP_SEARCH_HISTORIES) {
+        getHistories().then((items) => {
+          sendResponse({ items });
+        });
+
         return true;
       }
+
+      return false;
     }
   );
 
@@ -161,7 +184,7 @@ export default defineBackground(() => {
           sendResponse({ success: false });
         }
 
-        return true; // Keep the message channel open for async response
+        return true;
       } else if (action === BP_DUPLICATE_TAB) {
         getActiveTab().then((tab) => {
           if (tab.url) {
@@ -171,60 +194,16 @@ export default defineBackground(() => {
           }
         });
 
-        return true; // Keep the message channel open for async response
-      }
+        return true;
+      } else if (Object.keys(BROWSER_ACTION_URL_MAP).includes(action)) {
+        if (!url) return;
 
-      return true;
+        openTab(url, () => {
+          sendResponse({ success: true });
+        });
+
+        return true;
+      }
     }
   );
-
-  // open history tab
-  browser.runtime.onMessage.addListener((request, sender, sendResponse) => {
-    if (request.action === BP_OPEN_HISTORY_TAB) {
-      browser.tabs.create({ url: "chrome://history" });
-      sendResponse({ success: true });
-      return true;
-    }
-    return false;
-  });
-
-  // open downloads tab
-  browser.runtime.onMessage.addListener((request, sender, sendResponse) => {
-    if (request.action === BP_OPEN_DOWNLOADS_TAB) {
-      browser.tabs.create({ url: "chrome://downloads" });
-      sendResponse({ success: true });
-      return true;
-    }
-    return false;
-  });
-
-  // open chrome://extensions
-  browser.runtime.onMessage.addListener((request, sender, sendResponse) => {
-    if (request.action === BP_OPEN_EXTENSIONS_TAB) {
-      browser.tabs.create({ url: "chrome://extensions" });
-      sendResponse({ success: true });
-      return true;
-    }
-    return false;
-  });
-
-  // open chrome://settings
-  browser.runtime.onMessage.addListener((request, sender, sendResponse) => {
-    if (request.action === BP_OPEN_SETTINGS_TAB) {
-      browser.tabs.create({ url: "chrome://settings" });
-      sendResponse({ success: true });
-      return true;
-    }
-    return false;
-  });
-
-  // open chrome://help
-  browser.runtime.onMessage.addListener((request, sender, sendResponse) => {
-    if (request.action === BP_OPEN_HELP_TAB) {
-      browser.tabs.create({ url: "chrome://help" });
-      sendResponse({ success: true });
-      return true;
-    }
-    return false;
-  });
 });

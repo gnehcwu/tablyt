@@ -1,12 +1,11 @@
 import React, { useEffect, useRef, useState } from "react";
 import FocusLock from "react-focus-lock";
 import { RemoveScroll } from "react-remove-scroll";
-import type { SupportedKey, ActionItem } from "../utils/types";
-import useChromeMessage from "../hooks/useChromeMessage";
-import messageBackground from "../utils/messageBackground";
+import type { SupportedKey, ActionItem } from "@/utils/types";
+import useChromeMessage from "@/hooks/useChromeMessage";
+import messageBackground from "@/utils/messageBackground";
 import {
   BP_TOGGLE_PALETTE,
-  BP_SEARCH_BOOKMARKS,
   BP_SEARCH_OPENED_TABS,
   BP_OPEN_TAB,
   BP_DUPLICATE_TAB,
@@ -16,14 +15,17 @@ import {
   BP_OPEN_EXTENSIONS_TAB,
   BP_OPEN_SETTINGS_TAB,
   BP_OPEN_HELP_TAB,
-} from "../utils/constants";
-import scoreActions from "../utils/scoring/scoreActions";
+  BP_ABOUT_EXTENSION,
+  ACTION_MODE,
+  ACTION_MODE_ACTIONS,
+} from "@/utils/constants";
+import scoreActions from "@/utils/scoring/scoreActions";
 import Filter from "./Filter";
 import ActionList from "./ActionList";
 import Footer from "./Footer";
-import usePalette from "../hooks/usePalette";
-import { CopyPlus, History, FolderDown, Blocks, Cog, BadgeQuestionMark } from "lucide-react";
-import "../assets/tailwind.css";
+import usePalette from "@/hooks/usePalette";
+import { CopyPlus, Bookmark, History, FolderDown, Blocks, Cog, BadgeQuestionMark, BadgeInfo } from "lucide-react";
+import "@/assets/tailwind.css";
 
 const getBrowserActionIcon = (icon: React.ReactElement<{ className?: string }>) => {
   return React.cloneElement(icon, {
@@ -38,40 +40,59 @@ const BROWSER_ACTIONS: Record<string, ActionItem> = {
     domain: "Duplicate current tab",
     icon: getBrowserActionIcon(<CopyPlus />),
   },
+  [BP_SEARCH_BOOKMARKS]: {
+    action: BP_SEARCH_BOOKMARKS,
+    title: "Bookmarks",
+    domain: "Search bookmarks",
+    icon: getBrowserActionIcon(<Bookmark />),
+    actionMode: ACTION_MODE.BOOKMARKS,
+  },
   [BP_OPEN_HISTORY_TAB]: {
     action: BP_OPEN_HISTORY_TAB,
     title: "History",
-    domain: "Open browser history",
+    domain: "Search browser history",
     icon: getBrowserActionIcon(<History />),
+    actionMode: ACTION_MODE.HISTORY,
   },
   [BP_OPEN_DOWNLOADS_TAB]: {
     action: BP_OPEN_DOWNLOADS_TAB,
     title: "Downloads",
     domain: "Open browser downloads",
     icon: getBrowserActionIcon(<FolderDown />),
+    url: BROWSER_ACTION_URL_MAP[BP_OPEN_DOWNLOADS_TAB],
   },
   [BP_OPEN_EXTENSIONS_TAB]: {
     action: BP_OPEN_EXTENSIONS_TAB,
     title: "Extensions",
     domain: "Manage browser extensions",
     icon: getBrowserActionIcon(<Blocks />),
+    url: BROWSER_ACTION_URL_MAP[BP_OPEN_EXTENSIONS_TAB],
   },
   [BP_OPEN_SETTINGS_TAB]: {
     action: BP_OPEN_SETTINGS_TAB,
     title: "Settings",
     domain: "Open browser settings page",
     icon: getBrowserActionIcon(<Cog />),
+    url: BROWSER_ACTION_URL_MAP[BP_OPEN_SETTINGS_TAB],
   },
   [BP_OPEN_HELP_TAB]: {
     action: BP_OPEN_HELP_TAB,
     title: "Help",
     domain: "Open browser help page",
     icon: getBrowserActionIcon(<BadgeQuestionMark />),
+    url: BROWSER_ACTION_URL_MAP[BP_OPEN_HELP_TAB],
+  },
+  [BP_ABOUT_EXTENSION]: {
+    action: BP_ABOUT_EXTENSION,
+    title: "About the extension",
+    domain: "More information about the extension",
+    icon: getBrowserActionIcon(<BadgeInfo />),
+    url: BROWSER_ACTION_URL_MAP[BP_ABOUT_EXTENSION],
   },
 } as const;
 
 function Palette() {
-  const [{ open, search, selected, scoredActionItems, command }, dispatch] = usePalette();
+  const [{ open, search, selected, scoredActionItems, command, loading }, dispatch] = usePalette();
   const actionListRef = useRef<ActionItem[]>([]);
   const previousCommand = useRef(command);
   const [animationTrigger, setAnimationTrigger] = useState(0);
@@ -115,18 +136,20 @@ function Palette() {
     const actionItem = scoredActionItems[selected];
     if (!actionItem) return;
 
-    const { url, id, action } = actionItem || {};
+    const { url, id, action, actionMode } = actionItem || {};
+    if (actionMode) {
+      dispatch({ type: ACTION_TYPES.SET_COMMAND, payload: actionMode });
+
+      return;
+    }
+
     messageBackground({
       action: action || BP_OPEN_TAB,
       url,
       tabId: id,
-    })
-      .then((response: any) => {
-        if (response?.success) {
-          dismissPalette();
-        }
-      })
-      .catch(() => {});
+    }).catch(() => {});
+
+    dismissPalette();
   };
 
   const handleKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
@@ -149,10 +172,10 @@ function Palette() {
       case "Tab":
         event.preventDefault();
 
-        if (command) {
+        if (command === ACTION_MODE.BOOKMARKS) {
           dispatch({ type: ACTION_TYPES.SET_COMMAND, payload: "" });
         } else {
-          dispatch({ type: ACTION_TYPES.SET_COMMAND, payload: "Bookmarks" });
+          dispatch({ type: ACTION_TYPES.SET_COMMAND, payload: ACTION_MODE.BOOKMARKS });
         }
 
         return;
@@ -162,6 +185,16 @@ function Palette() {
           dispatch({ type: ACTION_TYPES.SET_COMMAND, payload: "" });
         }
         return;
+      case "!": {
+        event.preventDefault();
+
+        if (command === ACTION_MODE.HISTORY) {
+          dispatch({ type: ACTION_TYPES.SET_COMMAND, payload: "" });
+        } else {
+          dispatch({ type: ACTION_TYPES.SET_COMMAND, payload: ACTION_MODE.HISTORY });
+        }
+        return;
+      }
       default:
         return;
     }
@@ -174,15 +207,16 @@ function Palette() {
     }
   };
 
-  async function fetchTabOrBookmarks() {
-    const action = command === "Bookmarks" ? BP_SEARCH_BOOKMARKS : BP_SEARCH_OPENED_TABS;
-    try {
-      const response = await messageBackground({ action });
-      const tabsResponse = response as { bookmarks: ActionItem[] };
-      actionListRef.current = tabsResponse?.bookmarks || [];
+  async function fetchActionItems() {
+    const action = ACTION_MODE_ACTIONS[command as keyof typeof ACTION_MODE_ACTIONS] || BP_SEARCH_OPENED_TABS;
 
-      // Include browser actions when not in bookmarks mode
-      if (command !== "Bookmarks") {
+    try {
+      const response = await messageBackground<{ items: ActionItem[] }>({ action });
+      const tabsResponse = response?.items as ActionItem[];
+      actionListRef.current = tabsResponse || [];
+
+      // Include browser actions while not in any extra mode
+      if (!command) {
         Object.values(BROWSER_ACTIONS).forEach((actionItem) => {
           if (!actionListRef.current.some((item) => item.action === actionItem.action)) {
             actionListRef.current.push(actionItem);
@@ -192,7 +226,7 @@ function Palette() {
     } catch (_) {}
   }
 
-  function scoreTabsOrBookmarks() {
+  function scoreActionList() {
     const scoredItems = scoreActions(actionListRef.current, search);
 
     dispatch({
@@ -210,18 +244,22 @@ function Palette() {
   }, [command]);
 
   useEffect(() => {
-    async function fetchAndScoreTabOrBookmarks() {
-      await fetchTabOrBookmarks();
-      scoreTabsOrBookmarks();
+    async function fetchAndScoreActionListInternal() {
+      await fetchActionItems();
+      scoreActionList();
+      dispatch({
+        type: ACTION_TYPES.SET_LOADING,
+        payload: false,
+      });
     }
 
     if (open) {
-      fetchAndScoreTabOrBookmarks();
+      fetchAndScoreActionListInternal();
     }
   }, [command, open, dispatch]);
 
   useEffect(() => {
-    scoreTabsOrBookmarks();
+    scoreActionList();
   }, [search]);
 
   useChromeMessage(BP_TOGGLE_PALETTE, togglePalette);
@@ -240,11 +278,12 @@ function Palette() {
           <div
             key={animationTrigger}
             data-animate={animationTrigger > 0 ? "true" : "false"}
-            className="border border-neutral-300 dark:border-neutral-600 relative bg-white dark:bg-black rounded-[12px] shadow-2xl w-[min(789px,100vw)] grid grid-rows-[min-content_1fr_min-content] animate-in zoom-in-95 duration-125"
+            className="border border-neutral-300 dark:border-neutral-600 relative bg-white dark:bg-black rounded-2xl shadow-2xl w-[min(789px,100vw)] grid grid-rows-[min-content_1fr_min-content] animate-in zoom-in-95 duration-125"
             onKeyDown={handleKeyDown}
           >
             <Filter value={search} command={command} onValueChange={handleSearchValueChange} />
             <ActionList
+              loading={loading}
               actions={scoredActionItems}
               selected={selected}
               onSelect={handleMouseSelect}

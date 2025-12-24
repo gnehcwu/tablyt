@@ -22,7 +22,6 @@ export default function scoreActions(
       score: Math.max(
         scoreItem(item.title, pattern),
         item.domain ? scoreItem(item.domain, pattern) : 0,
-        item.url ? scoreItem(item.url, pattern) : 0,
         item.path ? scoreItem(item.path, pattern) : 0
       ),
     }))
