@@ -13,6 +13,7 @@ export const BP_OPEN_DOWNLOADS_TAB = "bp-open-downloads-tab";
 export const BP_OPEN_EXTENSIONS_TAB = "bp-open-extensions-tab";
 export const BP_OPEN_SETTINGS_TAB = "bp-open-settings-tab";
 export const BP_OPEN_HELP_TAB = "bp-open-help-tab";
+export const BP_TOGGLE_MUTE = "bp-toggle-mute";
 export const BP_ABOUT_EXTENSION = "bp-about-extension";
 
 export const ACTION_TYPES = {

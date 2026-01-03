@@ -18,13 +18,14 @@ import {
   BP_ABOUT_EXTENSION,
   ACTION_MODE,
   ACTION_MODE_ACTIONS,
+  BP_TOGGLE_MUTE,
 } from "@/utils/constants";
 import scoreActions from "@/utils/scoring/scoreActions";
 import Filter from "./Filter";
 import ActionList from "./ActionList";
 import Footer from "./Footer";
 import usePalette from "@/hooks/usePalette";
-import { CopyPlus, Bookmark, History, FolderDown, Blocks, Cog, BadgeQuestionMark, BadgeInfo } from "lucide-react";
+import { CopyPlus, Bookmark, History, FolderDown, Blocks, Cog, BadgeQuestionMark, BadgeInfo, VolumeX } from "lucide-react";
 import "@/assets/tailwind.css";
 
 const getBrowserActionIcon = (icon: React.ReactElement<{ className?: string }>) => {
@@ -53,6 +54,12 @@ const BROWSER_ACTIONS: Record<string, ActionItem> = {
     domain: "Search browser history",
     icon: getBrowserActionIcon(<History />),
     actionMode: ACTION_MODE.HISTORY,
+  },
+  [BP_TOGGLE_MUTE]: {
+    action: BP_TOGGLE_MUTE,
+    title: "Toggle Mute",
+    domain: "Mute or unmute current tab",
+    icon: getBrowserActionIcon(<VolumeX />),
   },
   [BP_OPEN_DOWNLOADS_TAB]: {
     action: BP_OPEN_DOWNLOADS_TAB,
@@ -84,7 +91,7 @@ const BROWSER_ACTIONS: Record<string, ActionItem> = {
   },
   [BP_ABOUT_EXTENSION]: {
     action: BP_ABOUT_EXTENSION,
-    title: "About the extension",
+    title: "About The Extension",
     domain: "More information about the extension",
     icon: getBrowserActionIcon(<BadgeInfo />),
     url: BROWSER_ACTION_URL_MAP[BP_ABOUT_EXTENSION],

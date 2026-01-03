@@ -5,6 +5,7 @@ import {
   BP_SEARCH_OPENED_TABS,
   BP_OPEN_TAB,
   BP_DUPLICATE_TAB,
+  BP_TOGGLE_MUTE,
   BP_SEARCH_HISTORIES,
   BROWSER_ACTION_URL_MAP,
 } from "@/utils/constants";
@@ -149,6 +150,16 @@ export default defineBackground(() => {
     browser.tabs.create({ url }, () => callback());
   }
 
+  async function setTabMuted(callback: () => void) {
+    const tab = await getActiveTab();
+    if (tab.id) {
+      const muted = !tab.mutedInfo?.muted;
+      await browser.tabs.update(tab.id, { muted });
+    }
+
+    callback();
+  }
+
   browser.runtime.onMessage.addListener(
     (
       request: { action: string; url?: string; tabId?: number },
@@ -181,7 +192,7 @@ export default defineBackground(() => {
             sendResponse({ success: true });
           });
         } else {
-          sendResponse({ success: false });
+          sendResponse({ success: true });
         }
 
         return true;
@@ -195,6 +206,10 @@ export default defineBackground(() => {
         });
 
         return true;
+      } else if (action === BP_TOGGLE_MUTE) {
+        setTabMuted(() => {
+          sendResponse({ success: true });
+        });
       } else if (Object.keys(BROWSER_ACTION_URL_MAP).includes(action)) {
         if (!url) return;
 
