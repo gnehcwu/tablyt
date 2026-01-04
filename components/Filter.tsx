@@ -40,7 +40,7 @@ function Filter({ value, command, onValueChange }: FilterProps) {
       {command && (
         <Badge
           variant="secondary"
-          className="border-neutral-300 dark:border-neutral-700 text-neutral-800 dark:text-neutral-200 h-5 min-w-5 rounded-full font-mono text-xs  cursor-default"
+          className="h-5 rounded-full font-mono text-xs cursor-default"
         >
           {command}
         </Badge>
@@ -71,7 +71,7 @@ function Filter({ value, command, onValueChange }: FilterProps) {
                 <span className="text-xs font-mono text-neutral-500 dark:text-neutral-400 hidden sm:block">
                   Search bookmarks
                 </span>
-                <Kbd className="min-w-[30px] rounded-xs text-xs font-mono font-semibold">Tab</Kbd>
+                <Badge variant="secondary" className="w-8 h-[18px]! rounded-[2px] text-xs font-mono font-semibold">Tab</Badge>
               </div>
             </CarouselItem>
             <CarouselItem key={1} className="h-5 pt-0 basis-full self-end">
@@ -79,7 +79,7 @@ function Filter({ value, command, onValueChange }: FilterProps) {
                 <span className="text-xs font-mono text-neutral-500 dark:text-neutral-400 hidden sm:block">
                   Search history
                 </span>
-                <Kbd className="min-w-[30px] h-4.5 rounded-xs text-sm font-mono font-bold">!</Kbd>
+                <Badge variant="secondary" className="w-8 h-[18px]! rounded-[2px] text-xs font-mono font-extrabold">!</Badge>
               </div>
             </CarouselItem>
           </CarouselContent>
