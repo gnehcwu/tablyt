@@ -1,14 +1,14 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 
-@custom-variant dark (&:is(.dark *));
+@custom-variant dark (&:is(.dark *, .dark-contrast *));
 
 @theme inline {
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
-  
+
   /* Override font sizes to use px instead of rem */
   --font-size-xs: 12px;
   --font-size-sm: 14px;
@@ -20,7 +20,7 @@
   --font-size-4xl: 36px;
   --font-size-5xl: 48px;
   --font-size-6xl: 60px;
-  
+
   /* Override spacing to use px instead of rem */
   --spacing-0: 0px;
   --spacing-px: 1px;
@@ -57,7 +57,6 @@
   --spacing-72: 288px;
   --spacing-80: 320px;
   --spacing-96: 384px;
-  
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
@@ -160,6 +159,132 @@
   --sidebar-ring: oklch(0.556 0 0);
 }
 
+/* High-contrast light theme: pure-white surfaces, black text, heavier borders. */
+.light-contrast {
+  --background: oklch(1 0 0);
+  --foreground: oklch(0 0 0);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0 0 0);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0 0 0);
+  --primary: oklch(0 0 0);
+  --primary-foreground: oklch(1 0 0);
+  --secondary: oklch(0.93 0 0);
+  --secondary-foreground: oklch(0 0 0);
+  --muted: oklch(0.93 0 0);
+  --muted-foreground: oklch(0.25 0 0);
+  --accent: oklch(0.93 0 0);
+  --accent-foreground: oklch(0 0 0);
+  --destructive: oklch(0.5 0.27 27.325);
+  --border: oklch(0.4 0 0);
+  --input: oklch(0.4 0 0);
+  --ring: oklch(0 0 0);
+}
+
+/* High-contrast dark theme: pure-black surfaces, white text, heavier borders. */
+.dark-contrast {
+  --background: oklch(0 0 0);
+  --foreground: oklch(1 0 0);
+  --card: oklch(0 0 0);
+  --card-foreground: oklch(1 0 0);
+  --popover: oklch(0 0 0);
+  --popover-foreground: oklch(1 0 0);
+  --primary: oklch(1 0 0);
+  --primary-foreground: oklch(0 0 0);
+  --secondary: oklch(0.2 0 0);
+  --secondary-foreground: oklch(1 0 0);
+  --muted: oklch(0.2 0 0);
+  --muted-foreground: oklch(0.9 0 0);
+  --accent: oklch(0.2 0 0);
+  --accent-foreground: oklch(1 0 0);
+  --destructive: oklch(0.78 0.21 22.216);
+  --border: oklch(0.75 0 0);
+  --input: oklch(0.75 0 0);
+  --ring: oklch(1 0 0);
+}
+
+/* Warm light — Claude-flavored: cream parchment surface, warm dark-brown text,
+   amber accent. Hue 85 (warm yellow) for surfaces, 60 (warm amber-brown) for
+   text/foreground, 45 (warm orange) for primary/ring. */
+.warm-light {
+  --background: oklch(0.975 0.013 85);
+  --foreground: oklch(0.32 0.025 60);
+  --card: oklch(0.975 0.013 85);
+  --card-foreground: oklch(0.32 0.025 60);
+  --popover: oklch(0.975 0.013 85);
+  --popover-foreground: oklch(0.32 0.025 60);
+  --primary: oklch(0.65 0.13 45);
+  --primary-foreground: oklch(0.98 0.005 85);
+  --secondary: oklch(0.93 0.018 85);
+  --secondary-foreground: oklch(0.32 0.025 60);
+  --muted: oklch(0.93 0.018 85);
+  --muted-foreground: oklch(0.5 0.022 60);
+  --accent: oklch(0.93 0.018 85);
+  --accent-foreground: oklch(0.32 0.025 60);
+  --destructive: oklch(0.55 0.2 25);
+  --border: oklch(0.88 0.015 85);
+  --input: oklch(0.88 0.015 85);
+  --ring: oklch(0.65 0.13 45);
+}
+
+/* The palette UI mixes shadcn CSS-variable colors with hardcoded neutral/black/white
+   Tailwind classes. Pin those hardcoded surfaces to the contrast palettes so the
+   contrast themes actually look distinct from the base light/dark themes. */
+.light-contrast .bg-white { background-color: oklch(1 0 0) !important; }
+.light-contrast .bg-black\/20 { background-color: oklch(0 0 0 / 35%) !important; }
+.light-contrast .text-neutral-950 { color: oklch(0 0 0) !important; }
+.light-contrast .text-neutral-500 { color: oklch(0.25 0 0) !important; }
+.light-contrast .border-neutral-300 { border-color: oklch(0.4 0 0) !important; }
+
+.dark-contrast .bg-black { background-color: oklch(0 0 0) !important; }
+.dark-contrast .bg-black\/20 { background-color: oklch(0 0 0 / 60%) !important; }
+.dark-contrast .dark\:text-neutral-200 { color: oklch(1 0 0) !important; }
+.dark-contrast .dark\:text-neutral-400 { color: oklch(0.9 0 0) !important; }
+.dark-contrast .dark\:border-neutral-600 { border-color: oklch(0.75 0 0) !important; }
+
+.warm-light .bg-white { background-color: oklch(0.975 0.013 85) !important; }
+.warm-light .text-neutral-950 { color: oklch(0.32 0.025 60) !important; }
+.warm-light .text-neutral-500 { color: oklch(0.5 0.022 60) !important; }
+.warm-light .border-neutral-300 { border-color: oklch(0.88 0.015 85) !important; }
+
+/* Border-only selection in contrast themes. The base palette uses a filled
+   bg-muted highlight; here we swap that for an inset ring so the selection
+   sits on top of an already-maximum-weight surface without piling on more
+   weight. box-shadow (not border) avoids the layout shift a real border
+   would cause as selection moves between rows. */
+.light-contrast .bg-muted\/90 {
+  background-color: transparent !important;
+  box-shadow: inset 0 0 0 1px oklch(0.18 0.005 264) !important;
+}
+
+.dark-contrast .dark\:bg-muted\/80 {
+  background-color: transparent !important;
+  box-shadow: inset 0 0 0 1px oklch(0.96 0.003 264) !important;
+}
+
+/* Keyboard chips (Footer) and secondary badges (Filter's mode pill, Tab/!
+   hints) in contrast themes. Base shadcn uses bg-muted / bg-secondary which
+   land only a few lightness steps off the contrast surfaces and read as
+   invisible; we paint a 1px outline at the same tone as the path-badge
+   border. Kbd has no border slot in its base classes so we use box-shadow
+   (no layout shift); Badge secondary already carries a transparent border,
+   so we just paint it. */
+.light-contrast [data-slot="kbd"] {
+  background-color: transparent !important;
+  box-shadow: inset 0 0 0 1px oklch(0.4 0 0) !important;
+}
+.dark-contrast [data-slot="kbd"] {
+  box-shadow: inset 0 0 0 1px oklch(0.75 0 0) !important;
+}
+
+.light-contrast [data-slot="badge"].bg-secondary {
+  background-color: transparent !important;
+  border-color: oklch(0.4 0 0) !important;
+}
+.dark-contrast [data-slot="badge"].bg-secondary {
+  border-color: oklch(0.75 0 0) !important;
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;
@@ -180,13 +305,13 @@
   .text-2xl { font-size: 24px !important; }
   .text-3xl { font-size: 30px !important; }
   .text-4xl { font-size: 36px !important; }
-  
+
   /* Padding */
   .p-1 { padding: 4px !important; }
   .p-2 { padding: 8px !important; }
   .p-3 { padding: 12px !important; }
   .p-4 { padding: 16px !important; }
-  
+
   /* Hide scrollbar */
   .scrollbar-hide {
     -ms-overflow-style: none;  /* Internet Explorer 10+ */
@@ -198,7 +323,7 @@
   .p-5 { padding: 20px !important; }
   .p-6 { padding: 24px !important; }
   .p-8 { padding: 32px !important; }
-  
+
   /* Margins */
   .m-1 { margin: 4px !important; }
   .m-2 { margin: 8px !important; }
@@ -207,7 +332,7 @@
   .m-5 { margin: 20px !important; }
   .m-6 { margin: 24px !important; }
   .m-8 { margin: 32px !important; }
-  
+
   /* Width */
   .w-4 { width: 16px !important; }
   .w-5 { width: 20px !important; }
@@ -224,7 +349,7 @@
   .w-64 { width: 256px !important; }
   .w-80 { width: 320px !important; }
   .w-96 { width: 384px !important; }
-  
+
   /* Height */
   .h-4 { height: 16px !important; }
   .h-5 { height: 20px !important; }
@@ -239,7 +364,7 @@
   .h-40 { height: 160px !important; }
   .h-48 { height: 192px !important; }
   .h-64 { height: 256px !important; }
-  
+
   /* Gap */
   .gap-1 { gap: 4px !important; }
   .gap-2 { gap: 8px !important; }
@@ -248,7 +373,7 @@
   .gap-5 { gap: 20px !important; }
   .gap-6 { gap: 24px !important; }
   .gap-8 { gap: 32px !important; }
-  
+
   /* Rounded corners */
   .rounded { border-radius: 4px !important; }
   .rounded-md { border-radius: 6px !important; }

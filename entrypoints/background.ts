@@ -7,6 +7,7 @@ import {
   BP_DUPLICATE_TAB,
   BP_TOGGLE_MUTE,
   BP_SEARCH_HISTORIES,
+  BP_OPEN_OPTIONS,
   BROWSER_ACTION_URL_MAP,
 } from "@/utils/constants";
 import type { ActionItem } from "@/utils/types";
@@ -99,6 +100,22 @@ export default defineBackground(() => {
   // Listener for clicking on extension icon
   browser.action.onClicked.addListener(function () {
     notifyContent(BP_TOGGLE_PALETTE);
+  });
+
+  const ACTION_MENU_OPEN_SETTINGS = "tablyt-open-settings";
+
+  browser.runtime.onInstalled.addListener(() => {
+    browser.contextMenus.create({
+      id: ACTION_MENU_OPEN_SETTINGS,
+      title: "Settings",
+      contexts: ["action"],
+    });
+  });
+
+  browser.contextMenus.onClicked.addListener((info) => {
+    if (info.menuItemId === ACTION_MENU_OPEN_SETTINGS) {
+      browser.runtime.openOptionsPage();
+    }
   });
 
   // Listener for registered command
@@ -210,6 +227,12 @@ export default defineBackground(() => {
         setTabMuted(() => {
           sendResponse({ success: true });
         });
+      } else if (action === BP_OPEN_OPTIONS) {
+        browser.runtime.openOptionsPage().then(
+          () => sendResponse({ success: true }),
+          () => sendResponse({ success: false })
+        );
+        return true;
       } else if (Object.keys(BROWSER_ACTION_URL_MAP).includes(action)) {
         if (!url) return;
 

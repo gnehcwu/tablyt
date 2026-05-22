@@ -80,7 +80,10 @@ export function paletteReducer(state: PaletteState, action: PaletteAction): Pale
   }
 }
 
-export default function usePalette() {
-  const [state, dispatch] = useReducer(paletteReducer, INITIAL_STATE);
+export default function usePalette(initialOpen = false) {
+  const [state, dispatch] = useReducer(
+    paletteReducer,
+    initialOpen ? { ...INITIAL_STATE, open: true } : INITIAL_STATE
+  );
   return [state, dispatch] as const;
 }

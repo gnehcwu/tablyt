@@ -15,6 +15,7 @@ import {
   BP_OPEN_EXTENSIONS_TAB,
   BP_OPEN_SETTINGS_TAB,
   BP_OPEN_HELP_TAB,
+  BP_OPEN_OPTIONS,
   BP_ABOUT_EXTENSION,
   ACTION_MODE,
   ACTION_MODE_ACTIONS,
@@ -25,7 +26,7 @@ import Filter from "./Filter";
 import ActionList from "./ActionList";
 import Footer from "./Footer";
 import usePalette from "@/hooks/usePalette";
-import { CopyPlus, Bookmark, History, FolderDown, Blocks, Cog, BadgeQuestionMark, BadgeInfo, VolumeX } from "lucide-react";
+import { CopyPlus, Bookmark, History, FolderDown, Blocks, Cog, BadgeQuestionMark, BadgeInfo, VolumeX, Settings2 } from "lucide-react";
 import "@/assets/tailwind.css";
 
 const getBrowserActionIcon = (icon: React.ReactElement<{ className?: string }>) => {
@@ -89,6 +90,12 @@ const BROWSER_ACTIONS: Record<string, ActionItem> = {
     icon: getBrowserActionIcon(<BadgeQuestionMark />),
     url: BROWSER_ACTION_URL_MAP[BP_OPEN_HELP_TAB],
   },
+  [BP_OPEN_OPTIONS]: {
+    action: BP_OPEN_OPTIONS,
+    title: "Tablyt Settings",
+    domain: "Open Tablyt settings page",
+    icon: getBrowserActionIcon(<Settings2 />),
+  },
   [BP_ABOUT_EXTENSION]: {
     action: BP_ABOUT_EXTENSION,
     title: "About The Extension",
@@ -98,8 +105,12 @@ const BROWSER_ACTIONS: Record<string, ActionItem> = {
   },
 } as const;
 
-function Palette() {
-  const [{ open, search, selected, scoredActionItems, command, loading }, dispatch] = usePalette();
+interface PaletteProps {
+  embedded?: boolean;
+}
+
+function Palette({ embedded = false }: PaletteProps = {}) {
+  const [{ open, search, selected, scoredActionItems, command, loading }, dispatch] = usePalette(embedded);
   const actionListRef = useRef<ActionItem[]>([]);
   const previousCommand = useRef(command);
   const [animationTrigger, setAnimationTrigger] = useState(0);
@@ -114,14 +125,11 @@ function Palette() {
     dispatch({ type: ACTION_TYPES.SET_SELECTED, payload: nextSelect });
   };
 
-  const dismissPalette = () => {
-    dispatch({ type: ACTION_TYPES.DISMISS_PALETTE });
-
-    // Reset animation trigger when modal closes
-    setAnimationTrigger(0);
-  };
-
   const togglePalette = () => {
+    if (embedded) {
+      dispatch({ type: ACTION_TYPES.SET_COMMAND, payload: "" });
+      return;
+    }
     dispatch({ type: ACTION_TYPES.TOGGLE_PALETTE });
     setAnimationTrigger(0);
   };
@@ -156,7 +164,7 @@ function Palette() {
       tabId: id,
     }).catch(() => {});
 
-    dismissPalette();
+    togglePalette();
   };
 
   const handleKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
@@ -174,7 +182,7 @@ function Palette() {
         executeAction();
         return;
       case "Escape":
-        dismissPalette();
+        togglePalette();
         return;
       case "Tab":
         event.preventDefault();
@@ -210,7 +218,7 @@ function Palette() {
   const handleLauncherClick = (event: React.MouseEvent<HTMLDivElement>) => {
     event.stopPropagation();
     if (event.target === event.currentTarget) {
-      dismissPalette();
+      togglePalette();
     }
   };
 
@@ -273,6 +281,34 @@ function Palette() {
 
   if (!open) return null;
 
+  const card = (
+    <div
+      key={animationTrigger}
+      data-animate={animationTrigger > 0 ? "true" : "false"}
+      className={`border border-neutral-300 dark:border-neutral-600 relative bg-white dark:bg-black rounded-2xl shadow-2xl grid grid-rows-[min-content_1fr_min-content] animate-in zoom-in-95 duration-125 ${
+        embedded ? "w-full max-w-[789px]" : "w-[min(789px,100vw)]"
+      }`}
+      onKeyDown={handleKeyDown}
+    >
+      <Filter value={search} command={command} onValueChange={handleSearchValueChange} />
+      <ActionList
+        loading={loading}
+        actions={scoredActionItems}
+        selected={selected}
+        onSelect={handleMouseSelect}
+        onAction={executeAction}
+      />
+      <Footer
+        filteredActionItemsCount={scoredActionItems.length}
+        totalActionItemsCount={actionListRef.current.length}
+      />
+    </div>
+  );
+
+  if (embedded) {
+    return card;
+  }
+
   return (
     <FocusLock>
       <RemoveScroll>
@@ -282,25 +318,7 @@ function Palette() {
           className="fixed inset-0 bg-black/20 grid place-content-center animate-in fade-in duration-150 z-2147483648"
           onClick={handleLauncherClick}
         >
-          <div
-            key={animationTrigger}
-            data-animate={animationTrigger > 0 ? "true" : "false"}
-            className="border border-neutral-300 dark:border-neutral-600 relative bg-white dark:bg-black rounded-2xl shadow-2xl w-[min(789px,100vw)] grid grid-rows-[min-content_1fr_min-content] animate-in zoom-in-95 duration-125"
-            onKeyDown={handleKeyDown}
-          >
-            <Filter value={search} command={command} onValueChange={handleSearchValueChange} />
-            <ActionList
-              loading={loading}
-              actions={scoredActionItems}
-              selected={selected}
-              onSelect={handleMouseSelect}
-              onAction={executeAction}
-            />
-            <Footer
-              filteredActionItemsCount={scoredActionItems.length}
-              totalActionItemsCount={actionListRef.current.length}
-            />
-          </div>
+          {card}
         </div>
       </RemoveScroll>
     </FocusLock>

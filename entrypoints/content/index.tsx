@@ -1,6 +1,7 @@
 import ReactDOM from "react-dom/client";
 import Palette from "../../components/Palette";
 import { TAB_PALETTE_ELEMENT } from "../../utils/constants";
+import { applyTheme, subscribeTheme } from "../../utils/theme";
 
 export default defineContentScript({
   matches: ["*://*/*"],
@@ -14,35 +15,14 @@ export default defineContentScript({
       append: "first",
       onMount: (container) => {
         const wrapper = document.createElement("div");
-        
-        const applyTheme = () => {
-          const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-          if (isDark) {
-            wrapper.classList.add('dark');
-            wrapper.style.colorScheme = 'dark';
-          } else {
-            wrapper.classList.remove('dark');
-            wrapper.style.colorScheme = 'light';
-          }
-        };
-        
-        applyTheme();
-        
-        const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-        mediaQuery.addEventListener('change', applyTheme);
-        
         container.append(wrapper);
 
+        const unsubscribe = subscribeTheme((resolved) => applyTheme(wrapper, resolved));
+
         const root = ReactDOM.createRoot(wrapper);
-        root.render(
-          <Palette />
-        );
-        
-        return { 
-          root, 
-          wrapper, 
-          cleanup: () => mediaQuery.removeEventListener('change', applyTheme)
-        };
+        root.render(<Palette />);
+
+        return { root, wrapper, cleanup: unsubscribe };
       },
       onRemove: (elements) => {
         elements?.cleanup?.();

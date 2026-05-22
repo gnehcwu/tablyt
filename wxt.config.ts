@@ -15,7 +15,7 @@ export default defineConfig({
     },
   }),
   manifest: {
-    permissions: ["favicon", "tabs", "activeTab", "bookmarks", "history"],
+    permissions: ["favicon", "tabs", "activeTab", "bookmarks", "history", "storage", "contextMenus"],
     web_accessible_resources: [
       {
         resources: ["_favicon/*"],
