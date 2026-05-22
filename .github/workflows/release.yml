@@ -1,0 +1,145 @@
+name: Release
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 2
+
+      - name: Detect version bump
+        id: check
+        run: |
+          curr=$(jq -r .version package.json)
+          echo "version=$curr" >> "$GITHUB_OUTPUT"
+
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          prev=$(git show HEAD^:package.json 2>/dev/null | jq -r .version || echo "")
+          if [ "$prev" != "$curr" ]; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Setup Node
+        if: steps.check.outputs.changed == 'true'
+        uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Install dependencies
+        if: steps.check.outputs.changed == 'true'
+        run: npm ci
+
+      - name: Build extension zips
+        if: steps.check.outputs.changed == 'true'
+        run: |
+          npm run zip
+          npm run zip:firefox
+
+      - name: Sanity-check zips
+        if: steps.check.outputs.changed == 'true'
+        run: |
+          set -euo pipefail
+          shopt -s nullglob extglob
+          zips=(.output/!(*-sources).zip)
+          if [ ${#zips[@]} -eq 0 ]; then
+            echo "::error::No extension zips produced in .output/"
+            exit 1
+          fi
+          for zip in "${zips[@]}"; do
+            [ -s "$zip" ] || { echo "::error::$zip is empty"; exit 1; }
+            unzip -l "$zip" | grep -q "manifest.json" || { echo "::error::$zip missing manifest.json"; exit 1; }
+            echo "OK: $zip"
+          done
+
+      - name: Create GitHub Release
+        if: steps.check.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: v${{ steps.check.outputs.version }}
+        run: |
+          shopt -s extglob
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" .output/!(*-sources).zip --clobber
+          else
+            gh release create "$TAG" .output/!(*-sources).zip \
+              --title "$TAG" \
+              --generate-notes
+          fi
+
+      - name: Submit to Chrome Web Store
+        if: github.event_name == 'workflow_dispatch' && steps.check.outputs.changed == 'true'
+        env:
+          CHROME_EXTENSION_ID: ${{ secrets.CHROME_EXTENSION_ID }}
+          CHROME_CLIENT_ID: ${{ secrets.CHROME_CLIENT_ID }}
+          CHROME_CLIENT_SECRET: ${{ secrets.CHROME_CLIENT_SECRET }}
+          CHROME_REFRESH_TOKEN: ${{ secrets.CHROME_REFRESH_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          ZIP=$(ls .output/*chrome*.zip 2>/dev/null | head -n 1)
+          if [ -z "$ZIP" ]; then
+            echo "::error::No Chrome zip found in .output/"
+            exit 1
+          fi
+          echo "Using zip: $ZIP"
+
+          echo "Exchanging refresh token for access token..."
+          ACCESS_TOKEN=$(curl -fsS -X POST https://oauth2.googleapis.com/token \
+            -d "client_id=$CHROME_CLIENT_ID" \
+            -d "client_secret=$CHROME_CLIENT_SECRET" \
+            -d "refresh_token=$CHROME_REFRESH_TOKEN" \
+            -d "grant_type=refresh_token" | jq -r .access_token)
+
+          if [ -z "$ACCESS_TOKEN" ] || [ "$ACCESS_TOKEN" = "null" ]; then
+            echo "::error::Failed to obtain access token"
+            exit 1
+          fi
+
+          echo "Uploading package to Chrome Web Store..."
+          UPLOAD=$(curl -fsS -X PUT \
+            -H "Authorization: Bearer $ACCESS_TOKEN" \
+            -H "x-goog-api-version: 2" \
+            -T "$ZIP" \
+            "https://www.googleapis.com/upload/chromewebstore/v1.1/items/$CHROME_EXTENSION_ID")
+          echo "$UPLOAD"
+
+          STATE=$(echo "$UPLOAD" | jq -r .uploadState)
+          if [ "$STATE" != "SUCCESS" ] && [ "$STATE" != "IN_PROGRESS" ]; then
+            echo "::error::Upload failed (state=$STATE)"
+            exit 1
+          fi
+
+          echo "Submitting for review..."
+          PUBLISH=$(curl -fsS -X POST \
+            -H "Authorization: Bearer $ACCESS_TOKEN" \
+            -H "x-goog-api-version: 2" \
+            -H "Content-Length: 0" \
+            "https://www.googleapis.com/chromewebstore/v1.1/items/$CHROME_EXTENSION_ID/publish")
+          echo "$PUBLISH"
+
+          STATUS=$(echo "$PUBLISH" | jq -r '.status[0] // empty')
+          case "$STATUS" in
+            OK|ITEM_PENDING_REVIEW)
+              echo "Submitted (status=$STATUS)"
+              ;;
+            *)
+              echo "::error::Publish failed (status=$STATUS)"
+              exit 1
+              ;;
+          esac
