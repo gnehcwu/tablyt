@@ -20,13 +20,14 @@ import {
   ACTION_MODE,
   ACTION_MODE_ACTIONS,
   BP_TOGGLE_MUTE,
+  BP_SEARCH_WEB,
 } from "@/utils/constants";
 import scoreActions from "@/utils/scoring/scoreActions";
 import Filter from "./Filter";
 import ActionList from "./ActionList";
 import Footer from "./Footer";
 import usePalette from "@/hooks/usePalette";
-import { CopyPlus, Bookmark, History, FolderDown, Blocks, Cog, BadgeQuestionMark, BadgeInfo, VolumeX, Settings2 } from "lucide-react";
+import { CopyPlus, Bookmark, History, FolderDown, Blocks, Cog, BadgeQuestionMark, BadgeInfo, VolumeX, Settings2, Search } from "lucide-react";
 import "@/assets/tailwind.css";
 
 const getBrowserActionIcon = (icon: React.ReactElement<{ className?: string }>) => {
@@ -105,6 +106,14 @@ const BROWSER_ACTIONS: Record<string, ActionItem> = {
   },
 } as const;
 
+const createWebSearchItem = (query: string): ActionItem => ({
+  action: BP_SEARCH_WEB,
+  title: `Search the web for “${query}”`,
+  domain: "Open your default search engine",
+  query,
+  icon: getBrowserActionIcon(<Search />),
+});
+
 interface PaletteProps {
   embedded?: boolean;
 }
@@ -151,7 +160,7 @@ function Palette({ embedded = false }: PaletteProps = {}) {
     const actionItem = scoredActionItems[selected];
     if (!actionItem) return;
 
-    const { url, id, action, actionMode } = actionItem || {};
+    const { url, id, action, actionMode, query } = actionItem || {};
     if (actionMode) {
       dispatch({ type: ACTION_TYPES.SET_COMMAND, payload: actionMode });
 
@@ -162,6 +171,7 @@ function Palette({ embedded = false }: PaletteProps = {}) {
       action: action || BP_OPEN_TAB,
       url,
       tabId: id,
+      query,
     }).catch(() => {});
 
     togglePalette();
@@ -244,9 +254,13 @@ function Palette({ embedded = false }: PaletteProps = {}) {
   function scoreActionList() {
     const scoredItems = scoreActions(actionListRef.current, search);
 
+    // Fall back to a web search when nothing matches the current query
+    const trimmedSearch = search.trim();
+    const payload = scoredItems.length === 0 && trimmedSearch ? [createWebSearchItem(trimmedSearch)] : scoredItems;
+
     dispatch({
       type: ACTION_TYPES.SET_SCORED_ITEMS,
-      payload: scoredItems,
+      payload,
     });
   }
 

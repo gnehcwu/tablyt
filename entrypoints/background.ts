@@ -8,6 +8,7 @@ import {
   BP_TOGGLE_MUTE,
   BP_SEARCH_HISTORIES,
   BP_OPEN_OPTIONS,
+  BP_SEARCH_WEB,
   BROWSER_ACTION_URL_MAP,
 } from "@/utils/constants";
 import type { ActionItem } from "@/utils/types";
@@ -167,6 +168,23 @@ export default defineBackground(() => {
     browser.tabs.create({ url }, () => callback());
   }
 
+  /**
+   * Search the web using the browser's configured default search engine.
+   * Falls back to a Google query URL when the search API is unavailable.
+   */
+  function searchWeb(query: string, callback: () => void) {
+    const search = (browser as typeof browser & { search?: any }).search;
+
+    if (search?.query) {
+      Promise.resolve(search.query({ text: query, disposition: "NEW_TAB" })).finally(callback);
+    } else if (search?.search) {
+      search.search({ query });
+      callback();
+    } else {
+      openTab(`https://www.google.com/search?q=${encodeURIComponent(query)}`, callback);
+    }
+  }
+
   async function setTabMuted(callback: () => void) {
     const tab = await getActiveTab();
     if (tab.id) {
@@ -179,13 +197,22 @@ export default defineBackground(() => {
 
   browser.runtime.onMessage.addListener(
     (
-      request: { action: string; url?: string; tabId?: number },
+      request: { action: string; url?: string; tabId?: number; query?: string },
       sender,
       sendResponse: (response?: { success?: boolean }) => void
     ) => {
-      const { action, url, tabId } = request || {};
+      const { action, url, tabId, query } = request || {};
 
-      if (action === BP_OPEN_TAB) {
+      if (action === BP_SEARCH_WEB) {
+        if (!query) {
+          sendResponse({ success: false });
+          return true;
+        }
+
+        searchWeb(query, () => sendResponse({ success: true }));
+
+        return true;
+      } else if (action === BP_OPEN_TAB) {
         if (tabId) {
           // Handle tab switching asynchronously
           (async () => {

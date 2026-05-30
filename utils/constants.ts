@@ -16,6 +16,7 @@ export const BP_OPEN_HELP_TAB = "bp-open-help-tab";
 export const BP_TOGGLE_MUTE = "bp-toggle-mute";
 export const BP_OPEN_OPTIONS = "bp-open-options";
 export const BP_ABOUT_EXTENSION = "bp-about-extension";
+export const BP_SEARCH_WEB = "bp-search-web";
 
 export const ACTION_TYPES = {
   TOGGLE_PALETTE: "TOGGLE_PALETTE",

@@ -9,6 +9,7 @@ export interface ActionItem {
   icon?: ReactNode;
   action?: string;
   actionMode?: string;
+  query?: string;
 }
 
 export type SupportedKey = "ArrowUp" | "ArrowDown" | "Enter" | "Escape" | "Tab" | "Backspace" | "!";
