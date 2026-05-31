@@ -1,7 +1,7 @@
 {
   "name": "Tablyt",
-  "description": "Quickly access opened tabs, bookmarks, history, and browser actions through a command-palette interface.",
-  "version": "1.2.5",
+  "description": "Quickly access tabs, bookmarks, history, and context-aware actions through a command-palette.",
+  "version": "2.0.0",
   "type": "module",
   "scripts": {
     "dev": "wxt",

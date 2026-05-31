@@ -14,6 +14,13 @@ import { ActionItem } from '../types.ts';
 // bookmark match still wins.
 const SOURCE_BOOST: Record<string, number> = { tab: 1.1 };
 
+// Keep matches scoring at least this fraction of the best hit. The scorer
+// lumps strong acronym matches and scattered junk into the same low band, so a
+// fixed floor would cut useful matches; a cutoff relative to the top result
+// prunes noise when a clear winner exists yet keeps results when the whole list
+// is only loosely matched (e.g. mid-typing).
+const RELATIVE_MATCH_RATIO = 0.3;
+
 export default function scoreActions(
   items: ActionItem[],
   pattern: string,
@@ -21,7 +28,7 @@ export default function scoreActions(
   if (!items?.length) return [];
   if (!pattern || pattern.length < DEFAULT_MINIMUM_MATCH) return items;
 
-  return items
+  const scored = items
     .map((item) => {
       const base = Math.max(
         scoreItem(item.title, pattern),
@@ -32,4 +39,10 @@ export default function scoreActions(
     })
     .filter((item) => item.score > 0)
     .sort((a, b) => b.score - a.score);
+
+  if (scored.length === 0) return scored;
+
+  // scored is sorted desc, so scored[0] is the best match.
+  const cutoff = scored[0].score * RELATIVE_MATCH_RATIO;
+  return scored.filter((item) => item.score >= cutoff);
 }

@@ -5,6 +5,9 @@ import {
   BP_SEARCH_OPENED_TABS,
   BP_OPEN_TAB,
   BP_DUPLICATE_TAB,
+  BP_CLOSE_TAB,
+  BP_REMOVE_BOOKMARK,
+  BP_ADD_BOOKMARK,
   BP_TOGGLE_MUTE,
   BP_SEARCH_HISTORIES,
   BP_OPEN_OPTIONS,
@@ -35,6 +38,7 @@ export default defineBackground(() => {
           domain = "";
         }
         bookmarks.push({
+          id: item.id,
           title: item.title,
           url: item.url,
           domain,
@@ -207,11 +211,11 @@ export default defineBackground(() => {
 
   browser.runtime.onMessage.addListener(
     (
-      request: { action: string; url?: string; tabId?: number; query?: string },
+      request: { action: string; url?: string; title?: string; tabId?: number; bookmarkId?: string; query?: string },
       sender,
       sendResponse: (response?: { success?: boolean }) => void
     ) => {
-      const { action, url, tabId, query } = request || {};
+      const { action, url, title, tabId, bookmarkId, query } = request || {};
 
       if (action === BP_SEARCH_WEB) {
         if (!query) {
@@ -251,13 +255,66 @@ export default defineBackground(() => {
 
         return true;
       } else if (action === BP_DUPLICATE_TAB) {
-        getActiveTab().then((tab) => {
-          if (tab.url) {
-            openTab(tab.url, () => {
+        // Duplicate the targeted tab when one is supplied (action panel on a
+        // specific tab row); otherwise fall back to duplicating the active tab
+        // (the "Duplicate" browser action).
+        if (tabId) {
+          browser.tabs.duplicate(tabId).then(
+            () => sendResponse({ success: true }),
+            () => sendResponse({ success: false })
+          );
+        } else {
+          getActiveTab().then((tab) => {
+            if (tab.url) {
+              openTab(tab.url, () => {
+                sendResponse({ success: true });
+              });
+            } else {
+              sendResponse({ success: false });
+            }
+          });
+        }
+
+        return true;
+      } else if (action === BP_CLOSE_TAB) {
+        if (tabId) {
+          browser.tabs.remove(tabId).then(
+            () => sendResponse({ success: true }),
+            () => sendResponse({ success: false })
+          );
+        } else {
+          sendResponse({ success: false });
+        }
+
+        return true;
+      } else if (action === BP_REMOVE_BOOKMARK) {
+        if (bookmarkId) {
+          browser.bookmarks.remove(bookmarkId).then(
+            () => sendResponse({ success: true }),
+            () => sendResponse({ success: false })
+          );
+        } else {
+          sendResponse({ success: false });
+        }
+
+        return true;
+      } else if (action === BP_ADD_BOOKMARK) {
+        if (url) {
+          // Idempotent: skip when the URL is already bookmarked so repeated
+          // presses don't pile up duplicates.
+          browser.bookmarks.search({ url }).then((existing) => {
+            if (existing.length > 0) {
               sendResponse({ success: true });
-            });
-          }
-        });
+              return;
+            }
+            browser.bookmarks.create({ title: title || url, url }).then(
+              () => sendResponse({ success: true }),
+              () => sendResponse({ success: false })
+            );
+          }, () => sendResponse({ success: false }));
+        } else {
+          sendResponse({ success: false });
+        }
 
         return true;
       } else if (action === BP_TOGGLE_MUTE) {

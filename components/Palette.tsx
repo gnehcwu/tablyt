@@ -22,13 +22,34 @@ import {
 import scoreActions from "@/utils/scoring/scoreActions";
 import Filter from "./Filter";
 import ActionList from "./ActionList";
+import ActionPanel from "./ActionPanel";
+import Toast from "./Toast";
 import Footer from "./Footer";
 import usePalette from "@/hooks/usePalette";
-import { CopyPlus, History, FolderDown, Blocks, Cog, VolumeX, Settings2, Search } from "lucide-react";
+import useFavorites from "@/hooks/useFavorites";
+import useToast from "@/hooks/useToast";
+import { favoriteKeyForItem, type FavoriteEntry } from "@/utils/favorites";
+import { getPanelActions, type PanelActionCtx } from "@/utils/actionPanelActions";
+import { BP_CLOSE_TAB, BP_REMOVE_BOOKMARK, BP_ADD_BOOKMARK } from "@/utils/constants";
+import {
+  CopyPlus,
+  History,
+  FolderDown,
+  Blocks,
+  Cog,
+  VolumeX,
+  Settings2,
+  Search,
+  BookmarkCheck,
+  Check,
+  Star,
+  StarOff,
+  Trash2,
+} from "lucide-react";
 import "@/assets/tailwind.css";
 
 // Fixed display order for the merged default scope.
-const SECTION_ORDER = ["tab", "bookmark", "action"] as const;
+const SECTION_ORDER = ["tab", "action", "bookmark"] as const;
 
 const getBrowserActionIcon = (icon: React.ReactElement<{ className?: string }>) => {
   return React.cloneElement(icon, {
@@ -88,10 +109,11 @@ const BROWSER_ACTIONS: Record<string, ActionItem> = {
 const createWebSearchItem = (query: string): ActionItem => ({
   action: BP_SEARCH_WEB,
   title: `“${query}”`,
-  domain: "Search the web with your default engine",
+  domain: "Search the web",
   query,
   hint: "Search",
   icon: getBrowserActionIcon(<Search />),
+  source: "action",
 });
 
 interface PaletteProps {
@@ -103,6 +125,11 @@ function Palette({ embedded = false }: PaletteProps = {}) {
   const actionListRef = useRef<ActionItem[]>([]);
   const previousCommand = useRef(command);
   const [animationTrigger, setAnimationTrigger] = useState(0);
+  const { favorites, isFavorite, toggle } = useFavorites();
+  const { toast, showToast } = useToast();
+  // Action panel is ephemeral, view-specific state — kept local, not in the reducer.
+  const [panelOpen, setPanelOpen] = useState(false);
+  const [panelSelected, setPanelSelected] = useState(0);
 
   const handleSearchValueChange = (value: string) => {
     dispatch({ type: ACTION_TYPES.SET_FILTER, payload: value });
@@ -134,16 +161,12 @@ function Palette({ embedded = false }: PaletteProps = {}) {
     dispatch({ type: ACTION_TYPES.SET_SELECTED, payload: nextIndex });
   };
 
-  const executeAction = () => {
-    if (!open) return;
-
-    const actionItem = scoredActionItems[selected];
-    if (!actionItem) return;
-
-    const { url, id, action, actionMode, query } = actionItem || {};
+  // Run a single item's primary action. A mode-switching action (e.g. History)
+  // stays open and swaps mode; everything else messages the background and closes.
+  const runItem = (item: ActionItem) => {
+    const { url, id, action, actionMode, query } = item;
     if (actionMode) {
       dispatch({ type: ACTION_TYPES.SET_COMMAND, payload: actionMode });
-
       return;
     }
 
@@ -157,8 +180,126 @@ function Palette({ embedded = false }: PaletteProps = {}) {
     togglePalette();
   };
 
+  const executeAction = () => {
+    if (!open) return;
+
+    const actionItem = scoredActionItems[selected];
+    if (!actionItem) return;
+
+    runItem(actionItem);
+  };
+
+  // Re-fetch the current scope and re-score after a list-mutating panel action
+  // (close tab / remove bookmark), keeping the palette open with fresh data.
+  const refreshList = async () => {
+    setPanelOpen(false);
+    await fetchActionItems();
+    scoreActionList();
+  };
+
+  const selectedItem = scoredActionItems[selected];
+
+  const panelCtx: PanelActionCtx = {
+    isFavorite,
+    toggleFavorite: (item) => {
+      // Read state before toggling so the toast reflects the resulting state.
+      const wasFavorite = isFavorite(item);
+      toggle(item);
+      setPanelOpen(false);
+      showToast(
+        wasFavorite ? "Removed from favorites" : "Added to favorites",
+        wasFavorite ? <StarOff size={14} /> : <Star size={14} />
+      );
+    },
+    switchToTab: (item) => {
+      messageBackground({ action: BP_OPEN_TAB, tabId: item.id }).catch(() => {});
+      togglePalette();
+    },
+    open: (item) => {
+      messageBackground({ action: BP_OPEN_TAB, url: item.url }).catch(() => {});
+      togglePalette();
+    },
+    duplicateTab: (item) => {
+      messageBackground({ action: BP_DUPLICATE_TAB, tabId: item.id }).catch(() => {});
+      togglePalette();
+    },
+    bookmarkItem: async (item) => {
+      await messageBackground({ action: BP_ADD_BOOKMARK, url: item.url, title: item.title }).catch(() => {});
+      // Refresh so the row picks up its bookmark indicator / toggled action.
+      refreshList();
+      showToast("Bookmarked", <BookmarkCheck size={14} />);
+    },
+    removeItemBookmark: async (item) => {
+      await messageBackground({ action: BP_REMOVE_BOOKMARK, bookmarkId: item.bookmarkId }).catch(() => {});
+      refreshList();
+      showToast("Bookmark removed", <Trash2 size={14} />);
+    },
+    closeTab: async (item) => {
+      // Wait for the background to actually remove the tab before re-querying,
+      // otherwise the closed tab is still present in the fresh list.
+      await messageBackground({ action: BP_CLOSE_TAB, tabId: item.id }).catch(() => {});
+      refreshList();
+      showToast("Tab closed", <Check size={14} />);
+    },
+    removeBookmark: async (item) => {
+      await messageBackground({ action: BP_REMOVE_BOOKMARK, bookmarkId: item.id }).catch(() => {});
+      // Drop a stale favorite pointing at the now-deleted bookmark.
+      if (isFavorite(item)) toggle(item);
+      refreshList();
+      showToast("Bookmark removed", <Trash2 size={14} />);
+    },
+    openCommand: (item) => {
+      setPanelOpen(false);
+      runItem(item);
+    },
+  };
+
+  const panelActions = selectedItem ? getPanelActions(selectedItem, panelCtx) : [];
+
   const handleKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
     event.stopPropagation();
+
+    // ⌘K / Ctrl+K toggles the action panel for the highlighted item.
+    if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
+      event.preventDefault();
+      if (panelOpen) {
+        setPanelOpen(false);
+      } else if (selectedItem && panelActions.length > 0) {
+        setPanelSelected(0);
+        setPanelOpen(true);
+      }
+      return;
+    }
+
+    // While the panel is open it owns the keyboard; swallow everything else so
+    // the search input underneath doesn't change.
+    if (panelOpen) {
+      switch (event.key) {
+        case "ArrowDown":
+        case "ArrowUp":
+        case "Tab": {
+          event.preventDefault();
+          const total = panelActions.length;
+          if (!total) return;
+          const dir = event.key === "ArrowDown" || (event.key === "Tab" && !event.shiftKey) ? 1 : -1;
+          setPanelSelected((panelSelected + dir + total) % total);
+          return;
+        }
+        case "Enter": {
+          event.preventDefault();
+          panelActions[panelSelected]?.run();
+          return;
+        }
+        case "Escape": {
+          event.preventDefault();
+          setPanelOpen(false);
+          return;
+        }
+        default:
+          event.preventDefault();
+          return;
+      }
+    }
 
     const key = event.key as SupportedKey;
 
@@ -207,11 +348,31 @@ function Palette({ embedded = false }: PaletteProps = {}) {
       .then((res) => res?.items ?? [])
       .catch(() => [] as ActionItem[]);
 
+  // Map each bookmarked URL to its bookmark id, so tab/history rows can show a
+  // bookmark indicator and offer "Remove bookmark" without a duplicate row.
+  function buildBookmarkIdMap(rawBookmarks: ActionItem[]) {
+    const map = new Map<string, string>();
+    for (const b of rawBookmarks) {
+      if (b.url && typeof b.id === "string" && !map.has(b.url)) {
+        map.set(b.url, b.id);
+      }
+    }
+    return map;
+  }
+
   async function fetchActionItems() {
     // History is the one separate scope — it's unbounded, so it stays behind Tab.
     if (command === ACTION_MODE.HISTORY) {
-      const histories = await fetchItems(BP_SEARCH_HISTORIES);
-      actionListRef.current = histories.map((item) => ({ ...item, source: "history" as const }));
+      const [histories, rawBookmarks] = await Promise.all([
+        fetchItems(BP_SEARCH_HISTORIES),
+        fetchItems(BP_SEARCH_BOOKMARKS),
+      ]);
+      const bookmarkIdByUrl = buildBookmarkIdMap(rawBookmarks);
+      actionListRef.current = histories.map((item) => ({
+        ...item,
+        source: "history" as const,
+        bookmarkId: item.url ? bookmarkIdByUrl.get(item.url) : undefined,
+      }));
       return;
     }
 
@@ -224,7 +385,13 @@ function Palette({ embedded = false }: PaletteProps = {}) {
       fetchItems(BP_SEARCH_BOOKMARKS),
     ]);
 
-    const tabs: ActionItem[] = rawTabs.map((item) => ({ ...item, source: "tab" }));
+    const bookmarkIdByUrl = buildBookmarkIdMap(rawBookmarks);
+
+    const tabs: ActionItem[] = rawTabs.map((item) => ({
+      ...item,
+      source: "tab",
+      bookmarkId: item.url ? bookmarkIdByUrl.get(item.url) : undefined,
+    }));
     const openTabUrls = new Set(tabs.map((t) => t.url));
     const bookmarks: ActionItem[] = rawBookmarks
       .filter((b) => !openTabUrls.has(b.url))
@@ -238,24 +405,69 @@ function Palette({ embedded = false }: PaletteProps = {}) {
     actionListRef.current = [...tabs, ...bookmarks, ...actions];
   }
 
+  // Rehydrate a stored favorite into a renderable list item. Action icons /
+  // mode are re-resolved from BROWSER_ACTIONS (never serialized); bookmark ids
+  // are refreshed from the live list when available so "Remove bookmark" works.
+  function favoriteEntryToItem(entry: FavoriteEntry): ActionItem {
+    if (entry.kind === "action") {
+      const base = BROWSER_ACTIONS[entry.action];
+      if (base) return { ...base, source: "favorite", favoriteKind: "action" };
+      return { action: entry.action, title: entry.title, domain: entry.domain, source: "favorite", favoriteKind: "action" };
+    }
+
+    const live = actionListRef.current.find((i) => i.source === "bookmark" && i.url === entry.url);
+    return {
+      title: entry.title,
+      url: entry.url,
+      domain: entry.domain,
+      id: live?.id ?? entry.id,
+      source: "favorite",
+      favoriteKind: "bookmark",
+    };
+  }
+
   function scoreActionList() {
     const trimmedSearch = search.trim();
     const scored = scoreActions(actionListRef.current, search);
 
-    // Keep results in fixed section order (open tabs → bookmarks → actions),
-    // with each section internally ranked by score. History is its own
-    // homogeneous scope, so it isn't regrouped.
-    const grouped =
-      command === ACTION_MODE.HISTORY
-        ? scored
-        : SECTION_ORDER.flatMap((src) => scored.filter((item) => item.source === src));
+    // History is its own homogeneous scope, so it isn't regrouped.
+    if (command === ACTION_MODE.HISTORY) {
+      dispatch({ type: ACTION_TYPES.SET_SCORED_ITEMS, payload: scored });
+      return;
+    }
 
-    // Fall back to a web search when nothing matches the current query
-    const payload = grouped.length === 0 && trimmedSearch ? [createWebSearchItem(trimmedSearch)] : grouped;
+    // Favorites get a pinned section at the top, but only in the default
+    // empty-query view — once the user types, results just score normally.
+    const showFavorites = trimmedSearch === "" && favorites.length > 0;
+    const favKeys = showFavorites ? new Set(favorites.map((f) => f.key)) : null;
+
+    // Dedup: a favorited item lives only in the Favorites section.
+    const working = favKeys
+      ? scored.filter((item) => {
+          const key = favoriteKeyForItem(item);
+          return !(key !== undefined && favKeys.has(key));
+        })
+      : scored;
+
+    // Group into sections, each internally ranked by score.
+    const sectionItems: Record<string, ActionItem[]> = {
+      tab: working.filter((item) => item.source === "tab"),
+      action: working.filter((item) => item.source === "action"),
+      bookmark: working.filter((item) => item.source === "bookmark"),
+    };
+
+    // Pin "search the web for <term>" to the top of the actions section
+    // whenever there's a query — always reachable, not just a no-match fallback.
+    if (trimmedSearch) {
+      sectionItems.action = [createWebSearchItem(trimmedSearch), ...sectionItems.action];
+    }
+
+    const grouped = SECTION_ORDER.flatMap((src) => sectionItems[src]);
+    const composed = showFavorites ? [...favorites.map(favoriteEntryToItem), ...grouped] : grouped;
 
     dispatch({
       type: ACTION_TYPES.SET_SCORED_ITEMS,
-      payload,
+      payload: composed,
     });
   }
 
@@ -286,6 +498,22 @@ function Palette({ embedded = false }: PaletteProps = {}) {
     scoreActionList();
   }, [search]);
 
+  // Recompose when favorites change (toggled here or in another tab) so the
+  // Favorites section and dedup stay in sync.
+  useEffect(() => {
+    if (open) scoreActionList();
+  }, [favorites]);
+
+  // The panel's actions are tied to one item/context — close it whenever that
+  // context shifts, and whenever the palette itself closes.
+  useEffect(() => {
+    setPanelOpen(false);
+  }, [selected, search, command]);
+
+  useEffect(() => {
+    if (!open) setPanelOpen(false);
+  }, [open]);
+
   useChromeMessage(BP_TOGGLE_PALETTE, togglePalette);
 
   if (!open) return null;
@@ -298,6 +526,7 @@ function Palette({ embedded = false }: PaletteProps = {}) {
         embedded ? "w-full max-w-[789px]" : "w-[min(789px,100vw)]"
       }`}
       onKeyDown={handleKeyDown}
+      onContextMenu={(event) => event.preventDefault()}
     >
       <Filter value={search} command={command} onValueChange={handleSearchValueChange} />
       <ActionList
@@ -310,7 +539,19 @@ function Palette({ embedded = false }: PaletteProps = {}) {
       <Footer
         filteredActionItemsCount={scoredActionItems.length}
         totalActionItemsCount={actionListRef.current.length}
+        actionsAvailable={panelActions.length > 0}
       />
+      {panelOpen && selectedItem && (
+        <ActionPanel
+          itemLabel={selectedItem.title}
+          actions={panelActions}
+          selected={panelSelected}
+          onSelect={setPanelSelected}
+          onRun={(action) => action.run()}
+          onDismiss={() => setPanelOpen(false)}
+        />
+      )}
+      <Toast toast={toast} />
     </div>
   );
 

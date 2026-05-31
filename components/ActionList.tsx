@@ -6,7 +6,7 @@ import { Kbd } from "./ui/kbd";
 import { Empty, EmptyHeader, EmptyDescription, EmptyMedia, EmptyTitle } from "./ui/empty";
 import { Item, ItemTitle, ItemContent, ItemMedia, ItemDescription } from "./ui/item";
 import { Skeleton } from "./ui/skeleton";
-import { Shell } from "lucide-react";
+import { Bookmark, Shell } from "lucide-react";
 import "@/assets/tailwind.css";
 
 const ELLIPSIS = "…";
@@ -47,6 +47,7 @@ interface ActionListProps {
 // Source → section title. Sources without an entry (e.g. history, the
 // web-search fallback) render no header.
 const SECTION_LABELS: Record<string, string> = {
+  favorite: "Favorites",
   tab: "Open tabs",
   bookmark: "Bookmarks",
   action: "Actions",
@@ -147,17 +148,21 @@ const Row = ({
   }
 
   const { item, itemIndex } = row;
-  const { title, path, domain, url, icon, hint } = item;
+  const { title, path, domain, url, icon, hint, source, bookmarkId } = item;
   const isSelected = itemIndex === selected;
+  const isBookmarkedRow = (source === "tab" || source === "history") && !!bookmarkId;
+
+  // Drop the redundant top-level root ("Bookmarks Bar" / "Other Bookmarks")
+  // from the badge — it's on nearly every path, so the nested folders carry the
+  // signal. The full path stays available on hover via the title attribute.
+  const folderSegments = path ? path.split(BOOKMARK_PATH_SEPARATOR) : [];
+  const folderPath = folderSegments.length > 1 ? folderSegments.slice(1).join(BOOKMARK_PATH_SEPARATOR) : path;
 
   return (
     <Item
       role="listitem"
       onClick={() => onAction(item)}
       onMouseMove={() => onSelect(itemIndex)}
-      onContextMenu={(e) => {
-        e.preventDefault();
-      }}
       className={`rounded-xl p-[4px_8px] gap-x-4 font-mono cursor-default transition-none! ${
         isSelected ? "bg-neutral-200 dark:bg-neutral-800" : ""
       }`}
@@ -173,7 +178,12 @@ const Row = ({
         </ItemDescription>
       </ItemContent>
       <ItemContent className="flex-none text-center">
-        {hint ? (
+        {isBookmarkedRow ? (
+          <Bookmark
+            className="w-3.5 h-3.5 text-neutral-400 dark:text-neutral-500 hidden sm:inline-block"
+            aria-label="Bookmarked"
+          />
+        ) : hint ? (
           <span
             className={`items-center gap-x-1.5 font-mono text-xs text-neutral-500 dark:text-neutral-400 hidden sm:inline-flex ${
               isSelected ? "opacity-100" : "opacity-0"
@@ -184,11 +194,11 @@ const Row = ({
           </span>
         ) : path ? (
           <Badge
-            className="border-black/15 dark:border-white/25 h-5 min-w-5 rounded-full px-1.5 font-mono text-xs max-w-[250px] overflow-hidden whitespace-nowrap relative text-neutral-500 dark:text-neutral-400 hidden sm:inline-flex items-center justify-center tracking-tight"
+            className="border-black/15 dark:border-white/25 h-5 min-w-5 rounded-full px-2 font-mono text-xs max-w-[250px] overflow-hidden whitespace-nowrap relative text-neutral-500 dark:text-neutral-400 hidden sm:inline-flex items-center justify-start tracking-tight"
             variant="outline"
             title={path}
           >
-            {truncatePath(path, 40)}
+            {truncatePath(folderPath ?? "", 30)}
           </Badge>
         ) : null}
       </ItemContent>

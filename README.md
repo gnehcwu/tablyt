@@ -1,6 +1,6 @@
 # Tablyt
 
-Browser extension that lets you quickly access opened tabs, bookmarks, history, and browser actions through a command-palette interface.
+Browser extension that lets you quickly access opened tabs, bookmarks, history, and context-aware actions through a command-palette.
 
 ![preview](./preview.png)
 

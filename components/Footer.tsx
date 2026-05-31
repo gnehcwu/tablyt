@@ -5,6 +5,7 @@ import "@/assets/tailwind.css";
 interface FooterProps {
   filteredActionItemsCount: number;
   totalActionItemsCount: number;
+  actionsAvailable?: boolean;
 }
 
 const KEYBOARD_SYMBOLS = {
@@ -14,7 +15,14 @@ const KEYBOARD_SYMBOLS = {
   ESC: "esc",
 } as const;
 
-function Footer({ filteredActionItemsCount: filteredBookmarkCount, totalActionItemsCount: totalBookmarkCount }: FooterProps) {
+const IS_MAC =
+  typeof navigator !== "undefined" && /mac/i.test(navigator.platform || navigator.userAgent || "");
+
+function Footer({
+  filteredActionItemsCount: filteredBookmarkCount,
+  totalActionItemsCount: totalBookmarkCount,
+  actionsAvailable = false,
+}: FooterProps) {
   const searchedResult = `${Math.min(
     filteredBookmarkCount,
     totalBookmarkCount
@@ -39,6 +47,15 @@ function Footer({ filteredActionItemsCount: filteredBookmarkCount, totalActionIt
           <Kbd aria-label="Move down" className="rounded-md font-normal">{KEYBOARD_SYMBOLS.DOWN}</Kbd>
           <span className="text-xs font-mono font-normal">to select</span>
         </div>
+        {actionsAvailable && (
+          <div className="flex items-center gap-x-1 font-mono">
+            <Kbd aria-label={IS_MAC ? "Command" : "Control"} className="rounded-md text-xs font-normal">
+              {IS_MAC ? "⌘" : "Ctrl"}
+            </Kbd>
+            <Kbd aria-label="K" className="rounded-md text-xs font-normal">K</Kbd>
+            <span className="text-xs font-mono font-normal">actions</span>
+          </div>
+        )}
       </div>
     </div>
   );
