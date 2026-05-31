@@ -2,6 +2,7 @@ import { useEffect, memo } from "react";
 import { ActionItem } from "@/utils/types";
 import { List, RowComponentProps, useListRef } from "react-window";
 import { Badge } from "./ui/badge";
+import { Kbd } from "./ui/kbd";
 import { Empty, EmptyHeader, EmptyDescription, EmptyMedia, EmptyTitle } from "./ui/empty";
 import { Item, ItemTitle, ItemContent, ItemMedia, ItemDescription } from "./ui/item";
 import { Skeleton } from "./ui/skeleton";
@@ -32,7 +33,7 @@ const Favicon = memo(({ url }: { url: string }) => {
 
 const EmptyState = memo(() => {
   return (
-    <Empty className="font-mono h-[416px]">
+    <Empty className="font-mono h-[366px]">
       <EmptyHeader>
         <EmptyMedia variant="default">
           <Shell size={48} className="dark:text-neutral-400 text-neutral-600" />
@@ -46,7 +47,7 @@ const EmptyState = memo(() => {
   );
 });
 
-const SKELETON_COUNT = 8;
+const SKELETON_COUNT = 7;
 const SKELETON_WIDTHS = Array.from({ length: SKELETON_COUNT }, (_, i) => ({
   title: 40 + ((i * 17 + 7) % 36),
   subtitle: 25 + ((i * 13 + 11) % 31),
@@ -54,7 +55,7 @@ const SKELETON_WIDTHS = Array.from({ length: SKELETON_COUNT }, (_, i) => ({
 
 function LoadingState() {
   return (
-    <div className="flex flex-col justify-between h-[416px] py-2 px-3">
+    <div className="flex flex-col justify-between h-[366px] py-2 px-3">
       {SKELETON_WIDTHS.map(({ title, subtitle }) => (
         <Item role="listitem" size="sm" className="w-full h-[50px] p-1!">
           <ItemContent className="flex-1 flex flex-col content-center h-full gap-0 gap-y-2! justify-center">
@@ -82,7 +83,7 @@ function ActionList({ actions, selected, onSelect, onAction, loading }: ActionLi
     actions: ActionItem[];
   }>) => {
     const action = actions[index];
-    const { title, path, domain, url, icon } = action;
+    const { title, path, domain, url, icon, hint } = action;
 
     return (
       <Item
@@ -92,8 +93,8 @@ function ActionList({ actions, selected, onSelect, onAction, loading }: ActionLi
         onContextMenu={(e) => {
           e.preventDefault();
         }}
-        className={`p-[4px_8px] gap-x-4 font-mono cursor-default ${
-          index === selected ? "bg-muted/90 dark:bg-muted/80" : ""
+        className={`rounded-xl p-[4px_8px] gap-x-4 font-mono cursor-default ${
+          index === selected ? "bg-neutral-200 dark:bg-neutral-800" : ""
         }`}
         style={style}
       >
@@ -107,9 +108,18 @@ function ActionList({ actions, selected, onSelect, onAction, loading }: ActionLi
           </ItemDescription>
         </ItemContent>
         <ItemContent className="flex-none text-center">
-          {path ? (
+          {hint ? (
+            <span
+              className={`items-center gap-x-1.5 font-mono text-xs text-neutral-500 dark:text-neutral-400 transition-opacity duration-150 hidden sm:inline-flex ${
+                index === selected ? "opacity-100" : "opacity-0"
+              }`}
+            >
+              {hint}
+              <Kbd className="text-xs font-normal">⏎</Kbd>
+            </span>
+          ) : path ? (
             <Badge
-              className="border-neutral-300 dark:border-neutral-600 h-5 min-w-5 rounded-full px-1.5 font-mono text-xs max-w-[250px] overflow-hidden whitespace-nowrap relative text-neutral-500 dark:text-neutral-400 hidden sm:inline-flex items-center justify-center tracking-tight"
+              className="border-black/15 dark:border-white/25 h-5 min-w-5 rounded-full px-1.5 font-mono text-xs max-w-[250px] overflow-hidden whitespace-nowrap relative text-neutral-500 dark:text-neutral-400 hidden sm:inline-flex items-center justify-center tracking-tight"
               variant="outline"
               title={path}
             >
@@ -139,7 +149,7 @@ function ActionList({ actions, selected, onSelect, onAction, loading }: ActionLi
         rowCount={actions.length}
         rowHeight={50}
         rowProps={{ actions }}
-        className="overscroll-contain scrollbar-hide h-[400px] w-full"
+        className="overscroll-contain scrollbar-hide h-[350px] w-full"
       />
     </div>
   );

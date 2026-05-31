@@ -246,18 +246,22 @@
 .warm-light .text-neutral-950 { color: oklch(0.32 0.025 60) !important; }
 .warm-light .text-neutral-500 { color: oklch(0.5 0.022 60) !important; }
 .warm-light .border-neutral-300 { border-color: oklch(0.88 0.015 85) !important; }
+/* Keep the selected-row highlight warm (a cool neutral-200 would clash with
+   the cream surface) while holding enough separation from the card to read. */
+.warm-light .bg-neutral-200 { background-color: oklch(0.91 0.022 85) !important; }
 
 /* Border-only selection in contrast themes. The base palette uses a filled
-   bg-muted highlight; here we swap that for an inset ring so the selection
+   neutral highlight; here we swap that for an inset ring so the selection
    sits on top of an already-maximum-weight surface without piling on more
    weight. box-shadow (not border) avoids the layout shift a real border
-   would cause as selection moves between rows. */
-.light-contrast .bg-muted\/90 {
+   would cause as selection moves between rows, and follows the row's
+   rounded-xl corners. */
+.light-contrast .bg-neutral-200 {
   background-color: transparent !important;
   box-shadow: inset 0 0 0 1px oklch(0.18 0.005 264) !important;
 }
 
-.dark-contrast .dark\:bg-muted\/80 {
+.dark-contrast .dark\:bg-neutral-800 {
   background-color: transparent !important;
   box-shadow: inset 0 0 0 1px oklch(0.96 0.003 264) !important;
 }
@@ -282,6 +286,18 @@
   border-color: oklch(0.4 0 0) !important;
 }
 .dark-contrast [data-slot="badge"].bg-secondary {
+  border-color: oklch(0.75 0 0) !important;
+}
+
+/* The path badge uses a surface-relative translucent border in the base/warm
+   themes so it holds even contrast on both resting and selected (filled) rows.
+   Contrast themes keep rows unfilled (border-only selection), so the badge
+   always sits on the card surface — pin its border to the same heavy tone as
+   every other border there for maximum crispness. */
+.light-contrast [data-slot="badge"].border-black\/15 {
+  border-color: oklch(0.4 0 0) !important;
+}
+.dark-contrast [data-slot="badge"].dark\:border-white\/25 {
   border-color: oklch(0.75 0 0) !important;
 }
 

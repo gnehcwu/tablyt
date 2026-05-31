@@ -10,6 +10,7 @@ export interface ActionItem {
   action?: string;
   actionMode?: string;
   query?: string;
+  hint?: string;
 }
 
 export type SupportedKey = "ArrowUp" | "ArrowDown" | "Enter" | "Escape" | "Tab" | "Backspace" | "!";

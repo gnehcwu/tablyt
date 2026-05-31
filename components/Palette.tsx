@@ -108,9 +108,10 @@ const BROWSER_ACTIONS: Record<string, ActionItem> = {
 
 const createWebSearchItem = (query: string): ActionItem => ({
   action: BP_SEARCH_WEB,
-  title: `Search the web for “${query}”`,
-  domain: "Open your default search engine",
+  title: `“${query}”`,
+  domain: "Search the web with your default engine",
   query,
+  hint: "Search",
   icon: getBrowserActionIcon(<Search />),
 });
 
@@ -299,8 +300,8 @@ function Palette({ embedded = false }: PaletteProps = {}) {
     <div
       key={animationTrigger}
       data-animate={animationTrigger > 0 ? "true" : "false"}
-      className={`border border-neutral-300 dark:border-neutral-600 relative bg-white dark:bg-black rounded-2xl shadow-2xl grid grid-rows-[min-content_1fr_min-content] animate-in zoom-in-95 duration-125 ${
-        embedded ? "w-full max-w-[789px]" : "w-[min(789px,100vw)]"
+      className={`border border-neutral-300 dark:border-neutral-600 relative bg-white dark:bg-black rounded-3xl shadow-2xl grid grid-rows-[min-content_1fr_min-content] animate-in zoom-in-95 duration-125 ${
+        embedded ? "w-full max-w-[720px]" : "w-[min(720px,100vw)]"
       }`}
       onKeyDown={handleKeyDown}
     >

@@ -2,10 +2,8 @@ import React, { useRef, useEffect, useState, useMemo } from "react";
 import debounce from "lodash.debounce";
 import { DEBOUNCE_DELAY } from "@/utils/constants";
 import { Badge } from "./ui/badge";
-import Autoplay from "embla-carousel-autoplay";
-import { Carousel, CarouselContent, CarouselItem } from "@/components/ui/carousel";
+import { Search } from "lucide-react";
 import "@/assets/tailwind.css";
-import { Kbd } from "./ui/kbd";
 
 interface FilterProps {
   value: string;
@@ -17,8 +15,6 @@ function Filter({ value, command, onValueChange }: FilterProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [inputValue, setInputValue] = useState(value);
   const debouncedFilterChange = useMemo(() => debounce(onValueChange, DEBOUNCE_DELAY), [onValueChange]);
-
-  const plugin = React.useRef(Autoplay({ delay: 5000, stopOnInteraction: true }));
 
   const handleInput = (event: React.ChangeEvent<HTMLInputElement>): void => {
     const value = event.target.value;
@@ -37,6 +33,7 @@ function Filter({ value, command, onValueChange }: FilterProps) {
 
   return (
     <div className="border-b border-neutral-300 dark:border-neutral-600 flex items-center gap-x-2 px-[21px] py-4">
+      <Search className="w-5 h-5 shrink-0 text-neutral-500 dark:text-neutral-400" strokeWidth={2.25} aria-hidden="true" />
       {command && (
         <Badge
           variant="secondary"
@@ -59,31 +56,16 @@ function Filter({ value, command, onValueChange }: FilterProps) {
         spellCheck="false"
       />
       {!command && (
-        <Carousel
-          plugins={[plugin.current]}
-          orientation="vertical"
-          opts={{ align: "start", loop: true }}
-          className="h-5 overflow-hidden"
-        >
-          <CarouselContent className="h-5 mt-0">
-            <CarouselItem key={0} className="h-5 pt-0 basis-full self-end">
-              <div className="items-center gap-x-2 cursor-default hidden sm:flex whitespace-nowrap h-5">
-                <span className="text-xs font-mono text-neutral-500 dark:text-neutral-400 hidden sm:block">
-                  Search bookmarks
-                </span>
-                <Badge variant="secondary" className="w-8 h-[18px]! rounded-[2px] text-xs font-mono font-semibold">Tab</Badge>
-              </div>
-            </CarouselItem>
-            <CarouselItem key={1} className="h-5 pt-0 basis-full self-end">
-              <div className="items-center gap-x-2 cursor-default hidden sm:flex whitespace-nowrap">
-                <span className="text-xs font-mono text-neutral-500 dark:text-neutral-400 hidden sm:block">
-                  Search history
-                </span>
-                <Badge variant="secondary" className="w-8 h-[18px]! rounded-[2px] text-xs font-mono font-extrabold">!</Badge>
-              </div>
-            </CarouselItem>
-          </CarouselContent>
-        </Carousel>
+        <div className="items-center gap-x-3 cursor-default hidden sm:flex whitespace-nowrap">
+          <span className="flex items-center gap-x-1.5">
+            <Badge variant="secondary" className="w-8 h-[18px]! rounded-[2px] text-xs font-mono font-semibold justify-center">Tab</Badge>
+            <span className="text-xs font-mono text-neutral-500 dark:text-neutral-400">Bookmarks</span>
+          </span>
+          <span className="flex items-center gap-x-1.5">
+            <Badge variant="secondary" className="w-8 h-[18px]! rounded-[2px] text-xs font-mono font-extrabold justify-center">!</Badge>
+            <span className="text-xs font-mono text-neutral-500 dark:text-neutral-400">History</span>
+          </span>
+        </div>
       )}
     </div>
   );
