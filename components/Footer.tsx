@@ -25,18 +25,18 @@ function Footer({ filteredActionItemsCount: filteredBookmarkCount, totalActionIt
       <p className="text-xs font-mono font-normal">{searchedResult}</p>
       <div className="items-center gap-x-6 hidden sm:flex">
         <div className="flex items-center gap-x-1 font-mono">
-          <Kbd aria-label="Close" className="text-xs font-normal">
+          <Kbd aria-label="Close" className="rounded-md text-xs font-normal">
             {KEYBOARD_SYMBOLS.ESC}
           </Kbd>
           <span className="text-xs font-mono font-normal">to close</span>
         </div>
         <div className="flex items-center gap-x-1 font-mono">
-          <Kbd aria-label="Open" className="font-normal">{KEYBOARD_SYMBOLS.ENTER}</Kbd>
+          <Kbd aria-label="Open" className="rounded-md font-normal">{KEYBOARD_SYMBOLS.ENTER}</Kbd>
           <span className="text-xs font-mono font-normal">to open</span>
         </div>
         <div className="flex items-center gap-x-1 font-mono">
-          <Kbd aria-label="Move up" className="font-normal">{KEYBOARD_SYMBOLS.UP}</Kbd>
-          <Kbd aria-label="Move down" className="font-normal">{KEYBOARD_SYMBOLS.DOWN}</Kbd>
+          <Kbd aria-label="Move up" className="rounded-md font-normal">{KEYBOARD_SYMBOLS.UP}</Kbd>
+          <Kbd aria-label="Move down" className="rounded-md font-normal">{KEYBOARD_SYMBOLS.DOWN}</Kbd>
           <span className="text-xs font-mono font-normal">to select</span>
         </div>
       </div>

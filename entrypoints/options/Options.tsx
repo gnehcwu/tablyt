@@ -60,9 +60,9 @@ const revealStyle = (index: number): React.CSSProperties => ({
 // Search scopes the palette exposes. Mirrors the mode switching in
 // Palette.tsx#handleKeyDown — kept in lockstep manually.
 const SCOPES: { key: string; icon: React.ReactNode; label: string; combo: React.ReactNode; desc: string }[] = [
-  { key: "tabs", icon: <AppWindow />, label: "Tabs", combo: <span className="text-muted-foreground">Default</span>, desc: "Search every open tab across all your windows." },
-  { key: "bookmarks", icon: <Bookmark />, label: "Bookmarks", combo: <Kbd>Tab</Kbd>, desc: "Fuzzy-search your entire bookmark tree." },
-  { key: "history", icon: <History />, label: "History", combo: <Kbd>!</Kbd>, desc: "Search your recent browsing history." },
+  { key: "tabs", icon: <AppWindow />, label: "Tabs", combo: <span className="text-muted-foreground">Default</span>, desc: "Every open tab across all your windows — shown first." },
+  { key: "bookmarks", icon: <Bookmark />, label: "Bookmarks", combo: <span className="text-muted-foreground">Default</span>, desc: "Listed right alongside your tabs — just start typing." },
+  { key: "history", icon: <History />, label: "History", combo: <Kbd>Tab</Kbd>, desc: "Its own scope — your recent browsing history." },
   { key: "web", icon: <Globe />, label: "Web", combo: <span className="text-muted-foreground">No match</span>, desc: "Falls back to a search with your default engine." },
 ];
 
@@ -72,8 +72,7 @@ const ACTIONS: { key: string; icon: React.ReactNode; label: string; desc: string
   { key: "mute", icon: <VolumeX />, label: "Toggle mute", desc: "Mute or unmute the current tab" },
   { key: "downloads", icon: <FolderDown />, label: "Downloads", desc: "Open browser downloads" },
   { key: "extensions", icon: <Blocks />, label: "Extensions", desc: "Manage browser extensions" },
-  { key: "settings", icon: <Cog />, label: "Settings", desc: "Open browser settings" },
-  { key: "help", icon: <BadgeQuestionMark />, label: "Help", desc: "Open browser help" },
+  { key: "settings", icon: <Cog />, label: "Browser settings", desc: "Open browser settings" },
   { key: "tablyt", icon: <Settings2 />, label: "Tablyt settings", desc: "Open this page" },
   { key: "about", icon: <BadgeInfo />, label: "About", desc: "About the extension" },
 ];
@@ -309,7 +308,7 @@ function ThemeSection({ theme, onSelect, previewRef, thumbRefs }: ThemeSectionPr
       <div className="flex justify-center">
         <div
           ref={previewRef}
-          className="w-full max-w-[760px] rounded-3xl [&>*]:shadow-[0_24px_60px_-20px_rgba(0,0,0,0.35)]"
+          className="w-full max-w-[789px] rounded-3xl [&>*]:shadow-[0_24px_60px_-20px_rgba(0,0,0,0.35)]"
         >
           <Palette embedded />
         </div>
@@ -329,10 +328,9 @@ function ReferenceSection() {
       ),
       label: "Move between results",
     },
-    { combo: <Kbd>⏎</Kbd>, label: "Open the selected result" },
-    { combo: <Kbd>Tab</Kbd>, label: "Toggle Bookmarks search" },
-    { combo: <Kbd>!</Kbd>, label: "Toggle History search" },
-    { combo: <Kbd>⌫</Kbd>, label: "Exit the current scope (when the filter is empty)" },
+    { combo: <Kbd>⏎</Kbd>, label: "Open the selected result, or switch to the tab" },
+    { combo: <Kbd>Tab</Kbd>, label: "Toggle History search" },
+    { combo: <Kbd>⌫</Kbd>, label: "Exit History (when the filter is empty)" },
     { combo: <Kbd>esc</Kbd>, label: "Close the palette" },
   ];
 
@@ -413,9 +411,10 @@ function AboutSection({ isMac, version }: { isMac: boolean; version: string }) {
         <div className={REVEAL} style={revealStyle(1)}>
           <h2 className="text-sm font-medium text-foreground">What it does</h2>
           <ul className="mt-3 space-y-2 text-sm text-neutral-500 dark:text-neutral-400">
-            <li>— Search every open tab across all windows and switch to it instantly.</li>
+            <li>— Search open tabs and bookmarks together — one list, just start typing.</li>
+            <li>— Open tabs come first and switch instantly; bookmarks open in a new tab.</li>
             <li>
-              — Press <Kbd className="mx-0.5">Tab</Kbd> for bookmarks, <Kbd className="mx-0.5">!</Kbd> for history.
+              — Press <Kbd className="mx-0.5">Tab</Kbd> to search your history in its own scope.
             </li>
             <li>— Trigger browser actions: duplicate, mute, downloads, extensions, and more.</li>
             <li>— No match? It falls back to a search with your default engine.</li>

@@ -251,19 +251,20 @@
 .warm-light .bg-neutral-200 { background-color: oklch(0.91 0.022 85) !important; }
 
 /* Border-only selection in contrast themes. The base palette uses a filled
-   neutral highlight; here we swap that for an inset ring so the selection
+   neutral highlight; here we swap that for a 1px outline so the selection
    sits on top of an already-maximum-weight surface without piling on more
-   weight. box-shadow (not border) avoids the layout shift a real border
-   would cause as selection moves between rows, and follows the row's
-   rounded-xl corners. */
+   weight. We paint the Item primitive's pre-existing `border border-transparent`
+   rather than a box-shadow: the border slot is already reserved, so there's no
+   layout shift, and a real border traces the row's rounded-xl (12px) corners
+   exactly — an inset box-shadow's arc renders inboard and reads a touch squarer. */
 .light-contrast .bg-neutral-200 {
   background-color: transparent !important;
-  box-shadow: inset 0 0 0 1px oklch(0.18 0.005 264) !important;
+  border-color: oklch(0.18 0.005 264) !important;
 }
 
 .dark-contrast .dark\:bg-neutral-800 {
   background-color: transparent !important;
-  box-shadow: inset 0 0 0 1px oklch(0.96 0.003 264) !important;
+  border-color: oklch(0.96 0.003 264) !important;
 }
 
 /* Keyboard chips (Footer) and secondary badges (Filter's mode pill, Tab/!
@@ -390,11 +391,16 @@
   .gap-6 { gap: 24px !important; }
   .gap-8 { gap: 32px !important; }
 
-  /* Rounded corners */
+  /* Rounded corners. Pinned to px so they don't rem-scale with the host
+     page's root font-size inside the Shadow DOM. The card (rounded-3xl, 24px)
+     and every inner radius below it stay in a fixed concentric relationship:
+     card 24 − list inset 12 (px-3) = item 12 (rounded-xl). */
   .rounded { border-radius: 4px !important; }
   .rounded-md { border-radius: 6px !important; }
   .rounded-lg { border-radius: 8px !important; }
   .rounded-xl { border-radius: 12px !important; }
+  .rounded-2xl { border-radius: 16px !important; }
+  .rounded-3xl { border-radius: 24px !important; }
 }
 
 /* Breathing animation for palette modal */

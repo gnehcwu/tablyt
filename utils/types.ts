@@ -11,9 +11,10 @@ export interface ActionItem {
   actionMode?: string;
   query?: string;
   hint?: string;
+  source?: "tab" | "bookmark" | "action" | "history";
 }
 
-export type SupportedKey = "ArrowUp" | "ArrowDown" | "Enter" | "Escape" | "Tab" | "Backspace" | "!";
+export type SupportedKey = "ArrowUp" | "ArrowDown" | "Enter" | "Escape" | "Tab" | "Backspace";
 
 export type HintConfig = {
   text?: string;

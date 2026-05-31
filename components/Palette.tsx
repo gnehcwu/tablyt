@@ -14,11 +14,8 @@ import {
   BP_OPEN_DOWNLOADS_TAB,
   BP_OPEN_EXTENSIONS_TAB,
   BP_OPEN_SETTINGS_TAB,
-  BP_OPEN_HELP_TAB,
   BP_OPEN_OPTIONS,
-  BP_ABOUT_EXTENSION,
   ACTION_MODE,
-  ACTION_MODE_ACTIONS,
   BP_TOGGLE_MUTE,
   BP_SEARCH_WEB,
 } from "@/utils/constants";
@@ -27,8 +24,11 @@ import Filter from "./Filter";
 import ActionList from "./ActionList";
 import Footer from "./Footer";
 import usePalette from "@/hooks/usePalette";
-import { CopyPlus, Bookmark, History, FolderDown, Blocks, Cog, BadgeQuestionMark, BadgeInfo, VolumeX, Settings2, Search } from "lucide-react";
+import { CopyPlus, History, FolderDown, Blocks, Cog, VolumeX, Settings2, Search } from "lucide-react";
 import "@/assets/tailwind.css";
+
+// Fixed display order for the merged default scope.
+const SECTION_ORDER = ["tab", "bookmark", "action"] as const;
 
 const getBrowserActionIcon = (icon: React.ReactElement<{ className?: string }>) => {
   return React.cloneElement(icon, {
@@ -42,13 +42,6 @@ const BROWSER_ACTIONS: Record<string, ActionItem> = {
     title: "Duplicate",
     domain: "Duplicate current tab",
     icon: getBrowserActionIcon(<CopyPlus />),
-  },
-  [BP_SEARCH_BOOKMARKS]: {
-    action: BP_SEARCH_BOOKMARKS,
-    title: "Bookmarks",
-    domain: "Search bookmarks",
-    icon: getBrowserActionIcon(<Bookmark />),
-    actionMode: ACTION_MODE.BOOKMARKS,
   },
   [BP_OPEN_HISTORY_TAB]: {
     action: BP_OPEN_HISTORY_TAB,
@@ -79,30 +72,16 @@ const BROWSER_ACTIONS: Record<string, ActionItem> = {
   },
   [BP_OPEN_SETTINGS_TAB]: {
     action: BP_OPEN_SETTINGS_TAB,
-    title: "Settings",
+    title: "Browser settings",
     domain: "Open browser settings page",
     icon: getBrowserActionIcon(<Cog />),
     url: BROWSER_ACTION_URL_MAP[BP_OPEN_SETTINGS_TAB],
   },
-  [BP_OPEN_HELP_TAB]: {
-    action: BP_OPEN_HELP_TAB,
-    title: "Help",
-    domain: "Open browser help page",
-    icon: getBrowserActionIcon(<BadgeQuestionMark />),
-    url: BROWSER_ACTION_URL_MAP[BP_OPEN_HELP_TAB],
-  },
   [BP_OPEN_OPTIONS]: {
     action: BP_OPEN_OPTIONS,
-    title: "Tablyt Settings",
+    title: "Tablyt settings",
     domain: "Open Tablyt settings page",
     icon: getBrowserActionIcon(<Settings2 />),
-  },
-  [BP_ABOUT_EXTENSION]: {
-    action: BP_ABOUT_EXTENSION,
-    title: "About The Extension",
-    domain: "More information about the extension",
-    icon: getBrowserActionIcon(<BadgeInfo />),
-    url: BROWSER_ACTION_URL_MAP[BP_ABOUT_EXTENSION],
   },
 } as const;
 
@@ -198,10 +177,10 @@ function Palette({ embedded = false }: PaletteProps = {}) {
       case "Tab":
         event.preventDefault();
 
-        if (command === ACTION_MODE.BOOKMARKS) {
+        if (command === ACTION_MODE.HISTORY) {
           dispatch({ type: ACTION_TYPES.SET_COMMAND, payload: "" });
         } else {
-          dispatch({ type: ACTION_TYPES.SET_COMMAND, payload: ACTION_MODE.BOOKMARKS });
+          dispatch({ type: ACTION_TYPES.SET_COMMAND, payload: ACTION_MODE.HISTORY });
         }
 
         return;
@@ -211,16 +190,6 @@ function Palette({ embedded = false }: PaletteProps = {}) {
           dispatch({ type: ACTION_TYPES.SET_COMMAND, payload: "" });
         }
         return;
-      case "!": {
-        event.preventDefault();
-
-        if (command === ACTION_MODE.HISTORY) {
-          dispatch({ type: ACTION_TYPES.SET_COMMAND, payload: "" });
-        } else {
-          dispatch({ type: ACTION_TYPES.SET_COMMAND, payload: ACTION_MODE.HISTORY });
-        }
-        return;
-      }
       default:
         return;
     }
@@ -233,31 +202,56 @@ function Palette({ embedded = false }: PaletteProps = {}) {
     }
   };
 
+  const fetchItems = (action: string) =>
+    messageBackground<{ items: ActionItem[] }>({ action })
+      .then((res) => res?.items ?? [])
+      .catch(() => [] as ActionItem[]);
+
   async function fetchActionItems() {
-    const action = ACTION_MODE_ACTIONS[command as keyof typeof ACTION_MODE_ACTIONS] || BP_SEARCH_OPENED_TABS;
+    // History is the one separate scope — it's unbounded, so it stays behind Tab.
+    if (command === ACTION_MODE.HISTORY) {
+      const histories = await fetchItems(BP_SEARCH_HISTORIES);
+      actionListRef.current = histories.map((item) => ({ ...item, source: "history" as const }));
+      return;
+    }
 
-    try {
-      const response = await messageBackground<{ items: ActionItem[] }>({ action });
-      const tabsResponse = response?.items as ActionItem[];
-      actionListRef.current = tabsResponse || [];
+    // Default scope: open tabs + bookmarks + browser actions, all searched
+    // together. Bookmarks are deduped against open tabs (switching beats
+    // opening a duplicate). The per-row ⏎ hint is reserved for the web-search
+    // fallback, where the action is non-obvious — common rows lean on the footer.
+    const [rawTabs, rawBookmarks] = await Promise.all([
+      fetchItems(BP_SEARCH_OPENED_TABS),
+      fetchItems(BP_SEARCH_BOOKMARKS),
+    ]);
 
-      // Include browser actions while not in any extra mode
-      if (!command) {
-        Object.values(BROWSER_ACTIONS).forEach((actionItem) => {
-          if (!actionListRef.current.some((item) => item.action === actionItem.action)) {
-            actionListRef.current.push(actionItem);
-          }
-        });
-      }
-    } catch (_) {}
+    const tabs: ActionItem[] = rawTabs.map((item) => ({ ...item, source: "tab" }));
+    const openTabUrls = new Set(tabs.map((t) => t.url));
+    const bookmarks: ActionItem[] = rawBookmarks
+      .filter((b) => !openTabUrls.has(b.url))
+      .map((item) => ({ ...item, source: "bookmark" }));
+
+    // Section order: open tabs → bookmarks → actions.
+    const actions: ActionItem[] = Object.values(BROWSER_ACTIONS)
+      .filter((a) => !tabs.some((t) => t.action === a.action))
+      .map((a) => ({ ...a, source: "action" as const }));
+
+    actionListRef.current = [...tabs, ...bookmarks, ...actions];
   }
 
   function scoreActionList() {
-    const scoredItems = scoreActions(actionListRef.current, search);
+    const trimmedSearch = search.trim();
+    const scored = scoreActions(actionListRef.current, search);
+
+    // Keep results in fixed section order (open tabs → bookmarks → actions),
+    // with each section internally ranked by score. History is its own
+    // homogeneous scope, so it isn't regrouped.
+    const grouped =
+      command === ACTION_MODE.HISTORY
+        ? scored
+        : SECTION_ORDER.flatMap((src) => scored.filter((item) => item.source === src));
 
     // Fall back to a web search when nothing matches the current query
-    const trimmedSearch = search.trim();
-    const payload = scoredItems.length === 0 && trimmedSearch ? [createWebSearchItem(trimmedSearch)] : scoredItems;
+    const payload = grouped.length === 0 && trimmedSearch ? [createWebSearchItem(trimmedSearch)] : grouped;
 
     dispatch({
       type: ACTION_TYPES.SET_SCORED_ITEMS,
@@ -301,7 +295,7 @@ function Palette({ embedded = false }: PaletteProps = {}) {
       key={animationTrigger}
       data-animate={animationTrigger > 0 ? "true" : "false"}
       className={`border border-neutral-300 dark:border-neutral-600 relative bg-white dark:bg-black rounded-3xl shadow-2xl grid grid-rows-[min-content_1fr_min-content] animate-in zoom-in-95 duration-125 ${
-        embedded ? "w-full max-w-[720px]" : "w-[min(720px,100vw)]"
+        embedded ? "w-full max-w-[789px]" : "w-[min(789px,100vw)]"
       }`}
       onKeyDown={handleKeyDown}
     >

@@ -10,6 +10,7 @@ import {
   BP_OPEN_OPTIONS,
   BP_SEARCH_WEB,
   BROWSER_ACTION_URL_MAP,
+  BOOKMARK_PATH_SEPARATOR,
 } from "@/utils/constants";
 import type { ActionItem } from "@/utils/types";
 
@@ -21,13 +22,22 @@ export default defineBackground(() => {
   ): ActionItem[] {
     for (let item of bookmarkNodes) {
       if (item.children) {
-        const path = parent ? `${parent}/${item.title}` : item.title;
+        const path = parent ? `${parent}${BOOKMARK_PATH_SEPARATOR}${item.title}` : item.title;
         transformBookmarks(item.children, path, bookmarks);
-      } else {
+      } else if (item.url) {
+        // Some bookmarks (separators, bookmarklets, non-http schemes) have no
+        // parseable URL — skip them rather than let one throw and drop the
+        // entire list.
+        let domain = "";
+        try {
+          domain = new URL(item.url).hostname;
+        } catch {
+          domain = "";
+        }
         bookmarks.push({
           title: item.title,
-          url: item.url as string,
-          domain: new URL(item.url as string).hostname,
+          url: item.url,
+          domain,
           path: parent,
         });
       }

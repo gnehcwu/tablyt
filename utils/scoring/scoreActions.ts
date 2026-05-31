@@ -9,6 +9,11 @@ import { ActionItem } from '../types.ts';
  * @param {string} pattern - The pattern to be used for scoring.
  * @returns {Array} - The array of scored items.
  */
+// Nudge already-open tabs above equally-matching bookmarks — switching to a
+// live tab beats opening a duplicate. Small enough that a clearly better
+// bookmark match still wins.
+const SOURCE_BOOST: Record<string, number> = { tab: 1.1 };
+
 export default function scoreActions(
   items: ActionItem[],
   pattern: string,
@@ -17,14 +22,14 @@ export default function scoreActions(
   if (!pattern || pattern.length < DEFAULT_MINIMUM_MATCH) return items;
 
   return items
-    .map((item) => ({
-      ...item,
-      score: Math.max(
+    .map((item) => {
+      const base = Math.max(
         scoreItem(item.title, pattern),
         item.domain ? scoreItem(item.domain, pattern) : 0,
         item.path ? scoreItem(item.path, pattern) : 0
-      ),
-    }))
+      );
+      return { ...item, score: base * (SOURCE_BOOST[item.source ?? ""] ?? 1) };
+    })
     .filter((item) => item.score > 0)
     .sort((a, b) => b.score - a.score);
 }

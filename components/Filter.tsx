@@ -32,8 +32,8 @@ function Filter({ value, command, onValueChange }: FilterProps) {
   }, []);
 
   return (
-    <div className="border-b border-neutral-300 dark:border-neutral-600 flex items-center gap-x-2 px-[21px] py-4">
-      <Search className="w-5 h-5 shrink-0 text-neutral-500 dark:text-neutral-400" strokeWidth={2.25} aria-hidden="true" />
+    <div className="border-b border-neutral-300 dark:border-neutral-600 flex items-center gap-x-2.5 px-[21px] py-[18px]">
+      <Search className="w-4 h-4 shrink-0 text-neutral-500 dark:text-neutral-400" strokeWidth={2} aria-hidden="true" />
       {command && (
         <Badge
           variant="secondary"
@@ -56,15 +56,9 @@ function Filter({ value, command, onValueChange }: FilterProps) {
         spellCheck="false"
       />
       {!command && (
-        <div className="items-center gap-x-3 cursor-default hidden sm:flex whitespace-nowrap">
-          <span className="flex items-center gap-x-1.5">
-            <Badge variant="secondary" className="w-8 h-[18px]! rounded-[2px] text-xs font-mono font-semibold justify-center">Tab</Badge>
-            <span className="text-xs font-mono text-neutral-500 dark:text-neutral-400">Bookmarks</span>
-          </span>
-          <span className="flex items-center gap-x-1.5">
-            <Badge variant="secondary" className="w-8 h-[18px]! rounded-[2px] text-xs font-mono font-extrabold justify-center">!</Badge>
-            <span className="text-xs font-mono text-neutral-500 dark:text-neutral-400">History</span>
-          </span>
+        <div className="items-center gap-x-1.5 cursor-default hidden sm:flex whitespace-nowrap">
+          <span className="text-xs font-mono text-neutral-500 dark:text-neutral-400">History</span>
+          <Badge variant="secondary" className="h-5 rounded-full font-mono text-xs cursor-default">Tab</Badge>
         </div>
       )}
     </div>
