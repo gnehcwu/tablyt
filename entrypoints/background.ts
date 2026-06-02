@@ -1,111 +1,21 @@
 import { browser } from "wxt/browser";
-import {
-  BP_TOGGLE_PALETTE,
-  BP_SEARCH_BOOKMARKS,
-  BP_SEARCH_OPENED_TABS,
-  BP_OPEN_TAB,
-  BP_DUPLICATE_TAB,
-  BP_CLOSE_TAB,
-  BP_REMOVE_BOOKMARK,
-  BP_ADD_BOOKMARK,
-  BP_TOGGLE_MUTE,
-  BP_SEARCH_HISTORIES,
-  BP_OPEN_OPTIONS,
-  BP_SEARCH_WEB,
-  BROWSER_ACTION_URL_MAP,
-  BOOKMARK_PATH_SEPARATOR,
-} from "@/utils/constants";
+import { BP_TOGGLE_PALETTE, BP_SEARCH_BOOKMARKS, BP_SEARCH_OPENED_TABS, BP_SEARCH_HISTORIES } from "@/utils/constants";
 import type { ActionItem } from "@/utils/types";
+import {
+  extractBookmarks,
+  getOpenedTabs,
+  getHistories,
+  getActiveTab,
+  handleActionMessage,
+  type ActionRequest,
+} from "@/utils/backgroundActions";
 
 export default defineBackground(() => {
-  function transformBookmarks(
-    bookmarkNodes: Browser.bookmarks.BookmarkTreeNode[] = [],
-    parent: string = "",
-    bookmarks: ActionItem[] = []
-  ): ActionItem[] {
-    for (let item of bookmarkNodes) {
-      if (item.children) {
-        const path = parent ? `${parent}${BOOKMARK_PATH_SEPARATOR}${item.title}` : item.title;
-        transformBookmarks(item.children, path, bookmarks);
-      } else if (item.url) {
-        // Some bookmarks (separators, bookmarklets, non-http schemes) have no
-        // parseable URL — skip them rather than let one throw and drop the
-        // entire list.
-        let domain = "";
-        try {
-          domain = new URL(item.url).hostname;
-        } catch {
-          domain = "";
-        }
-        bookmarks.push({
-          id: item.id,
-          title: item.title,
-          url: item.url,
-          domain,
-          path: parent,
-        });
-      }
-    }
-
-    return bookmarks;
-  }
-
-  async function extractBookmarks() {
-    const bookmarkNodes = await browser.bookmarks.getTree();
-    return transformBookmarks(bookmarkNodes[0]?.children || []);
-  }
-
-  /**
-   * Get all the currently opened tabs, including tabs across all opening windows, not just the current window
-   */
-  async function getOpenedTabs(): Promise<ActionItem[]> {
-    const tabs = await browser.tabs.query({});
-
-    return tabs.map((item) => ({
-      id: item.id,
-      title: item.title?.toString() || "",
-      url: item.url as string,
-      domain: new URL(item.url as string).hostname,
-    }));
-  }
-
-  async function getHistories(): Promise<ActionItem[]> {
-    const historyItems = await browser.history.search({
-      text: "",
-      maxResults: 100000,
-      startTime: 0,
-    });
-
-    const processed = new Set<string>();
-    const histories: ActionItem[] = [];
-
-    for (const history of historyItems) {
-      const { title = "", url = "" } = history;
-
-      if (!url || processed.has(url)) continue;
-
-      histories.push({ title, url, domain: new URL(url).hostname });
-      processed.add(url!);
-    }
-
-    return histories;
-  }
-
-  /**
-   * Get currently active browser tab
-   * @returns current active tab
-   */
-  async function getActiveTab() {
-    const queryOptions = { active: true, currentWindow: true };
-    const [tab] = await browser.tabs.query(queryOptions);
-    return tab;
-  }
-
   /**
    * Notify content script with given action type
    */
   async function notifyContent(action: string): Promise<void> {
-    const activeTab = await getActiveTab();
+    const activeTab = await getActiveTab(browser);
 
     if (!activeTab?.id || activeTab.url?.includes("chrome://") || activeTab.url?.includes("browser.google.com")) return;
 
@@ -140,37 +50,23 @@ export default defineBackground(() => {
     }
   });
 
+  // Data-fetch requests from the palette: each returns `{ items }`.
   browser.runtime.onMessage.addListener(
-    (
-      request: { action: string; url?: string },
-      _,
-      sendResponse: (response: { items?: ActionItem[]; openerTabId?: number }) => void
-    ) => {
+    (request: { action: string }, _, sendResponse: (response: { items?: ActionItem[] }) => void) => {
       if (request.action === BP_SEARCH_BOOKMARKS) {
-        extractBookmarks()
-          .then((bookmarks) => {
-            sendResponse({ items: bookmarks });
-          })
-          .catch(() => {
-            sendResponse({ items: [] });
-          });
-
+        extractBookmarks(browser).then(
+          (items) => sendResponse({ items }),
+          () => sendResponse({ items: [] })
+        );
         return true;
       } else if (request.action === BP_SEARCH_OPENED_TABS) {
-        getOpenedTabs()
-          .then((openedTabs) => {
-            sendResponse({ items: openedTabs });
-          })
-          .catch(() => {
-            sendResponse({ items: [] });
-          });
-
+        getOpenedTabs(browser).then(
+          (items) => sendResponse({ items }),
+          () => sendResponse({ items: [] })
+        );
         return true;
       } else if (request.action === BP_SEARCH_HISTORIES) {
-        getHistories().then((items) => {
-          sendResponse({ items });
-        });
-
+        getHistories(browser).then((items) => sendResponse({ items }));
         return true;
       }
 
@@ -178,164 +74,15 @@ export default defineBackground(() => {
     }
   );
 
-  function openTab(url: string, callback: () => void) {
-    browser.tabs.create({ url }, () => callback());
-  }
-
-  /**
-   * Search the web using the browser's configured default search engine.
-   * Falls back to a Google query URL when the search API is unavailable.
-   */
-  function searchWeb(query: string, callback: () => void) {
-    const search = (browser as typeof browser & { search?: any }).search;
-
-    if (search?.query) {
-      Promise.resolve(search.query({ text: query, disposition: "NEW_TAB" })).finally(callback);
-    } else if (search?.search) {
-      search.search({ query });
-      callback();
-    } else {
-      openTab(`https://www.google.com/search?q=${encodeURIComponent(query)}`, callback);
-    }
-  }
-
-  async function setTabMuted(callback: () => void) {
-    const tab = await getActiveTab();
-    if (tab.id) {
-      const muted = !tab.mutedInfo?.muted;
-      await browser.tabs.update(tab.id, { muted });
-    }
-
-    callback();
-  }
-
+  // Mutation/action requests from the palette: routed through handleActionMessage,
+  // which returns `null` for actions it doesn't own (so we decline them here).
   browser.runtime.onMessage.addListener(
-    (
-      request: { action: string; url?: string; title?: string; tabId?: number; bookmarkId?: string; query?: string },
-      sender,
-      sendResponse: (response?: { success?: boolean }) => void
-    ) => {
-      const { action, url, title, tabId, bookmarkId, query } = request || {};
+    (request: ActionRequest, _sender, sendResponse: (response?: { success?: boolean }) => void) => {
+      const result = handleActionMessage(browser, request);
+      if (!result) return false;
 
-      if (action === BP_SEARCH_WEB) {
-        if (!query) {
-          sendResponse({ success: false });
-          return true;
-        }
-
-        searchWeb(query, () => sendResponse({ success: true }));
-
-        return true;
-      } else if (action === BP_OPEN_TAB) {
-        if (tabId) {
-          // Handle tab switching asynchronously
-          (async () => {
-            try {
-              const tab = await browser.tabs.get(tabId);
-              if (tab.windowId) {
-                // Focus the window first (brings it to front)
-                await browser.windows.update(tab.windowId, { focused: true });
-                await browser.tabs.update(tabId, { active: true });
-              } else {
-                // Fallback: just activate the tab
-                await browser.tabs.update(tabId, { active: true });
-              }
-              sendResponse({ success: true });
-            } catch (error) {
-              sendResponse({ success: false });
-            }
-          })();
-        } else if (url) {
-          openTab(url, () => {
-            sendResponse({ success: true });
-          });
-        } else {
-          sendResponse({ success: true });
-        }
-
-        return true;
-      } else if (action === BP_DUPLICATE_TAB) {
-        // Duplicate the targeted tab when one is supplied (action panel on a
-        // specific tab row); otherwise fall back to duplicating the active tab
-        // (the "Duplicate" browser action).
-        if (tabId) {
-          browser.tabs.duplicate(tabId).then(
-            () => sendResponse({ success: true }),
-            () => sendResponse({ success: false })
-          );
-        } else {
-          getActiveTab().then((tab) => {
-            if (tab.url) {
-              openTab(tab.url, () => {
-                sendResponse({ success: true });
-              });
-            } else {
-              sendResponse({ success: false });
-            }
-          });
-        }
-
-        return true;
-      } else if (action === BP_CLOSE_TAB) {
-        if (tabId) {
-          browser.tabs.remove(tabId).then(
-            () => sendResponse({ success: true }),
-            () => sendResponse({ success: false })
-          );
-        } else {
-          sendResponse({ success: false });
-        }
-
-        return true;
-      } else if (action === BP_REMOVE_BOOKMARK) {
-        if (bookmarkId) {
-          browser.bookmarks.remove(bookmarkId).then(
-            () => sendResponse({ success: true }),
-            () => sendResponse({ success: false })
-          );
-        } else {
-          sendResponse({ success: false });
-        }
-
-        return true;
-      } else if (action === BP_ADD_BOOKMARK) {
-        if (url) {
-          // Idempotent: skip when the URL is already bookmarked so repeated
-          // presses don't pile up duplicates.
-          browser.bookmarks.search({ url }).then((existing) => {
-            if (existing.length > 0) {
-              sendResponse({ success: true });
-              return;
-            }
-            browser.bookmarks.create({ title: title || url, url }).then(
-              () => sendResponse({ success: true }),
-              () => sendResponse({ success: false })
-            );
-          }, () => sendResponse({ success: false }));
-        } else {
-          sendResponse({ success: false });
-        }
-
-        return true;
-      } else if (action === BP_TOGGLE_MUTE) {
-        setTabMuted(() => {
-          sendResponse({ success: true });
-        });
-      } else if (action === BP_OPEN_OPTIONS) {
-        browser.runtime.openOptionsPage().then(
-          () => sendResponse({ success: true }),
-          () => sendResponse({ success: false })
-        );
-        return true;
-      } else if (Object.keys(BROWSER_ACTION_URL_MAP).includes(action)) {
-        if (!url) return;
-
-        openTab(url, () => {
-          sendResponse({ success: true });
-        });
-
-        return true;
-      }
+      result.then(sendResponse);
+      return true;
     }
   );
 });

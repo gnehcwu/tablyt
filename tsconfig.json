@@ -4,6 +4,7 @@
     "allowImportingTsExtensions": true,
     "jsx": "react-jsx",
     "baseUrl": ".",
+    "types": ["node", "chrome", "vitest/globals", "@testing-library/jest-dom"],
     "paths": {
       "@/*": ["./*"]
     }

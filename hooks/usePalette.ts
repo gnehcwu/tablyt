@@ -1,4 +1,5 @@
-import { ACTION_TYPES } from "../utils/constants";
+import { ACTION_TYPES, ACTION_MODE } from "@/utils/constants";
+import type { ActionItem } from "@/utils/types";
 import { useReducer } from "react";
 
 export type PaletteState = {

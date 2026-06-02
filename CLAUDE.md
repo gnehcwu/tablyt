@@ -12,10 +12,21 @@ Tablyt is a Chrome/Firefox extension that opens a command-palette overlay (defau
 - `npm run dev:firefox` — same, for Firefox.
 - `npm run build` / `npm run build:firefox` — production build into `.output/`.
 - `npm run zip` / `npm run zip:firefox` — zip the built artifact for store upload.
-- `npm run compile` — typecheck only (`tsc --noEmit`); there is no separate lint or test command.
+- `npm run compile` — typecheck only (`tsc --noEmit`); there is no separate lint command.
+- `npm test` — run the Vitest suite once. `npm run test:watch` — watch mode.
 - `npm install` runs `wxt prepare` post-install, which regenerates `.wxt/` (types, tsconfig base). Run `npx wxt prepare` manually if `.wxt/` is missing or types look stale.
 
-There is no test suite.
+### Testing
+
+Vitest + Testing Library, jsdom environment. Config is `vitest.config.ts`; per-test setup is `vitest.setup.ts`. Tests live next to the code they cover (`*.test.ts[x]`).
+
+The config deliberately does **not** use WXT's `WxtVitest` plugin or `@vitejs/plugin-react` — both pull WXT's rolldown-based Vite 8 toolchain into config evaluation, which needs Node ≥20.12 (the WXT *build* itself needs that Node too). To keep tests runnable on older Node, we use Vitest 2, let Vitest's built-in esbuild transform JSX (`esbuild.jsx: "automatic"`), and back the global `chrome.*`/`browser.*` API with `@webext-core/fake-browser` (reset between tests in the setup file). Because we skip WXT auto-imports in tests, source files in the test/render path must use **explicit** `@/*` imports rather than relying on auto-imports (this is the preferred convention anyway).
+
+Two layers:
+- **Unit** — pure logic with no DOM: `utils/scoring/scoreActions`, `utils/actionPanelActions` (`getPanelActions`), `hooks/usePalette` (`paletteReducer`), `utils/favorites`, the extracted palette helpers `utils/paletteRun` (`buildRunPlan` — per-source ⏎ routing) and `utils/listComposition` (dedup + section grouping), and `utils/backgroundActions` (`handleActionMessage` routing + bookmark/history transforms), tested against a mock `browser`.
+- **Component/flow** — `components/Palette.test.tsx` renders `<Palette embedded />` against a mocked `messageBackground`, drives real `Enter`/`Arrow`/`Tab` keystrokes, and asserts the message sent per row type. Keyboard handling reads from reducer state (not the DOM), so the flow is testable even though the react-window list doesn't lay out in jsdom; `ResizeObserver` is stubbed in the setup so the list mounts.
+
+When extracting decision logic out of a component for testability, put the pure function in `utils/` and have the component call it (see `buildRunPlan`).
 
 ## Architecture
 
@@ -29,7 +40,7 @@ The extension has two runtime contexts that talk via `chrome.runtime.sendMessage
 Every cross-context message is identified by a string constant prefixed `BP_` (browser-palette), all defined in `utils/constants.ts`. When adding a new action:
 
 1. Add the `BP_*` constant in `utils/constants.ts`.
-2. Handle it in one of the two `browser.runtime.onMessage.addListener` blocks in `entrypoints/background.ts` (the first block handles data fetches and returns `{ items }`; the second handles mutation actions — switch/open/duplicate/close tab, add/remove bookmark, mute, etc. — and returns `{ success }`).
+2. Handle it via `entrypoints/background.ts`. That file is a thin shell: it registers listeners and owns the non-message wiring (action click, context menu, command), but delegates the message work. Data fetches go in the first `onMessage` block, which calls the fetch helpers in `utils/backgroundActions.ts` (`extractBookmarks` / `getOpenedTabs` / `getHistories`) and returns `{ items }`. Mutation actions — switch/open/duplicate/close tab, add/remove bookmark, mute, open options, URL-opening actions — go in `handleActionMessage(browser, request)` in `utils/backgroundActions.ts`, which returns a `Promise<{ success }>` (or `null` for actions it doesn't own). `handleActionMessage` takes the `browser` API as a parameter so it's unit-testable against a mock.
 3. If it should appear as a browser action in the palette, register it in `BROWSER_ACTIONS` inside `components/Palette.tsx`. For pure URL-opening actions, also add the URL to `BROWSER_ACTION_URL_MAP` in `utils/constants.ts`.
 
 Use `utils/messageBackground.ts` (a Promise wrapper around `chrome.runtime.sendMessage`) when calling the background from the palette. Use `hooks/useChromeMessage.ts` when subscribing to background-→content messages from a React component.

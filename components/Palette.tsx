@@ -7,6 +7,8 @@ import messageBackground from "@/utils/messageBackground";
 import {
   BP_TOGGLE_PALETTE,
   BP_SEARCH_OPENED_TABS,
+  BP_SEARCH_BOOKMARKS,
+  BP_SEARCH_HISTORIES,
   BP_OPEN_TAB,
   BP_DUPLICATE_TAB,
   ACTION_TYPES,
@@ -18,6 +20,7 @@ import {
   ACTION_MODE,
   BP_TOGGLE_MUTE,
   BP_SEARCH_WEB,
+  BROWSER_ACTION_URL_MAP,
 } from "@/utils/constants";
 import scoreActions from "@/utils/scoring/scoreActions";
 import Filter from "./Filter";
@@ -28,9 +31,11 @@ import Footer from "./Footer";
 import usePalette from "@/hooks/usePalette";
 import useFavorites from "@/hooks/useFavorites";
 import useToast from "@/hooks/useToast";
-import { favoriteKeyForItem, type FavoriteEntry } from "@/utils/favorites";
+import { type FavoriteEntry } from "@/utils/favorites";
 import { getPanelActions, type PanelActionCtx } from "@/utils/actionPanelActions";
 import { BP_CLOSE_TAB, BP_REMOVE_BOOKMARK, BP_ADD_BOOKMARK } from "@/utils/constants";
+import { buildRunPlan } from "@/utils/paletteRun";
+import { composeDefaultItems, composeHistoryItems, groupScoredItems } from "@/utils/listComposition";
 import {
   CopyPlus,
   History,
@@ -47,9 +52,6 @@ import {
   Trash2,
 } from "lucide-react";
 import "@/assets/tailwind.css";
-
-// Fixed display order for the merged default scope.
-const SECTION_ORDER = ["tab", "action", "bookmark"] as const;
 
 const getBrowserActionIcon = (icon: React.ReactElement<{ className?: string }>) => {
   return React.cloneElement(icon, {
@@ -163,20 +165,15 @@ function Palette({ embedded = false }: PaletteProps = {}) {
 
   // Run a single item's primary action. A mode-switching action (e.g. History)
   // stays open and swaps mode; everything else messages the background and closes.
+  // The per-source routing lives in `buildRunPlan` so it can be unit-tested.
   const runItem = (item: ActionItem) => {
-    const { url, id, action, actionMode, query } = item;
-    if (actionMode) {
-      dispatch({ type: ACTION_TYPES.SET_COMMAND, payload: actionMode });
+    const plan = buildRunPlan(item);
+    if (plan.kind === "mode") {
+      dispatch({ type: ACTION_TYPES.SET_COMMAND, payload: plan.mode });
       return;
     }
 
-    messageBackground({
-      action: action || BP_OPEN_TAB,
-      url,
-      tabId: id,
-      query,
-    }).catch(() => {});
-
+    messageBackground(plan.message).catch(() => {});
     togglePalette();
   };
 
@@ -348,18 +345,6 @@ function Palette({ embedded = false }: PaletteProps = {}) {
       .then((res) => res?.items ?? [])
       .catch(() => [] as ActionItem[]);
 
-  // Map each bookmarked URL to its bookmark id, so tab/history rows can show a
-  // bookmark indicator and offer "Remove bookmark" without a duplicate row.
-  function buildBookmarkIdMap(rawBookmarks: ActionItem[]) {
-    const map = new Map<string, string>();
-    for (const b of rawBookmarks) {
-      if (b.url && typeof b.id === "string" && !map.has(b.url)) {
-        map.set(b.url, b.id);
-      }
-    }
-    return map;
-  }
-
   async function fetchActionItems() {
     // History is the one separate scope — it's unbounded, so it stays behind Tab.
     if (command === ACTION_MODE.HISTORY) {
@@ -367,12 +352,7 @@ function Palette({ embedded = false }: PaletteProps = {}) {
         fetchItems(BP_SEARCH_HISTORIES),
         fetchItems(BP_SEARCH_BOOKMARKS),
       ]);
-      const bookmarkIdByUrl = buildBookmarkIdMap(rawBookmarks);
-      actionListRef.current = histories.map((item) => ({
-        ...item,
-        source: "history" as const,
-        bookmarkId: item.url ? bookmarkIdByUrl.get(item.url) : undefined,
-      }));
+      actionListRef.current = composeHistoryItems({ histories, rawBookmarks });
       return;
     }
 
@@ -385,24 +365,11 @@ function Palette({ embedded = false }: PaletteProps = {}) {
       fetchItems(BP_SEARCH_BOOKMARKS),
     ]);
 
-    const bookmarkIdByUrl = buildBookmarkIdMap(rawBookmarks);
-
-    const tabs: ActionItem[] = rawTabs.map((item) => ({
-      ...item,
-      source: "tab",
-      bookmarkId: item.url ? bookmarkIdByUrl.get(item.url) : undefined,
-    }));
-    const openTabUrls = new Set(tabs.map((t) => t.url));
-    const bookmarks: ActionItem[] = rawBookmarks
-      .filter((b) => !openTabUrls.has(b.url))
-      .map((item) => ({ ...item, source: "bookmark" }));
-
-    // Section order: open tabs → bookmarks → actions.
-    const actions: ActionItem[] = Object.values(BROWSER_ACTIONS)
-      .filter((a) => !tabs.some((t) => t.action === a.action))
-      .map((a) => ({ ...a, source: "action" as const }));
-
-    actionListRef.current = [...tabs, ...bookmarks, ...actions];
+    actionListRef.current = composeDefaultItems({
+      rawTabs,
+      rawBookmarks,
+      browserActions: Object.values(BROWSER_ACTIONS),
+    });
   }
 
   // Rehydrate a stored favorite into a renderable list item. Action icons /
@@ -438,32 +405,16 @@ function Palette({ embedded = false }: PaletteProps = {}) {
 
     // Favorites get a pinned section at the top, but only in the default
     // empty-query view — once the user types, results just score normally.
+    // Section grouping / dedup ordering lives in `groupScoredItems`; the
+    // React-bearing item factories stay here.
     const showFavorites = trimmedSearch === "" && favorites.length > 0;
-    const favKeys = showFavorites ? new Set(favorites.map((f) => f.key)) : null;
-
-    // Dedup: a favorited item lives only in the Favorites section.
-    const working = favKeys
-      ? scored.filter((item) => {
-          const key = favoriteKeyForItem(item);
-          return !(key !== undefined && favKeys.has(key));
-        })
-      : scored;
-
-    // Group into sections, each internally ranked by score.
-    const sectionItems: Record<string, ActionItem[]> = {
-      tab: working.filter((item) => item.source === "tab"),
-      action: working.filter((item) => item.source === "action"),
-      bookmark: working.filter((item) => item.source === "bookmark"),
-    };
-
-    // Pin "search the web for <term>" to the top of the actions section
-    // whenever there's a query — always reachable, not just a no-match fallback.
-    if (trimmedSearch) {
-      sectionItems.action = [createWebSearchItem(trimmedSearch), ...sectionItems.action];
-    }
-
-    const grouped = SECTION_ORDER.flatMap((src) => sectionItems[src]);
-    const composed = showFavorites ? [...favorites.map(favoriteEntryToItem), ...grouped] : grouped;
+    const composed = groupScoredItems({
+      scored,
+      showFavorites,
+      favoriteKeys: new Set(favorites.map((f: FavoriteEntry) => f.key)),
+      favoriteItems: showFavorites ? favorites.map(favoriteEntryToItem) : [],
+      webSearchItem: trimmedSearch ? createWebSearchItem(trimmedSearch) : undefined,
+    });
 
     dispatch({
       type: ACTION_TYPES.SET_SCORED_ITEMS,
