@@ -1,5 +1,7 @@
 import { useEffect, memo, useMemo } from "react";
 import { ActionItem } from "@/utils/types";
+import { BOOKMARK_PATH_SEPARATOR } from "@/utils/constants";
+import getFavicon from "@/utils/getFavicon";
 import { List, RowComponentProps, useListRef } from "react-window";
 import { Badge } from "./ui/badge";
 import { Kbd } from "./ui/kbd";

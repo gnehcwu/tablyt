@@ -12,10 +12,21 @@ Tablyt is a Chrome/Firefox extension that opens a command-palette overlay (defau
 - `npm run dev:firefox` — same, for Firefox.
 - `npm run build` / `npm run build:firefox` — production build into `.output/`.
 - `npm run zip` / `npm run zip:firefox` — zip the built artifact for store upload.
-- `npm run compile` — typecheck only (`tsc --noEmit`); there is no separate lint or test command.
+- `npm run compile` — typecheck only (`tsc --noEmit`); there is no separate lint command.
+- `npm test` — run the Vitest suite once. `npm run test:watch` — watch mode.
 - `npm install` runs `wxt prepare` post-install, which regenerates `.wxt/` (types, tsconfig base). Run `npx wxt prepare` manually if `.wxt/` is missing or types look stale.
 
-There is no test suite.
+### Testing
+
+Vitest + Testing Library, jsdom environment. Config is `vitest.config.ts`; per-test setup is `vitest.setup.ts`. Tests live next to the code they cover (`*.test.ts[x]`).
+
+The config deliberately does **not** use WXT's `WxtVitest` plugin or `@vitejs/plugin-react` — both pull WXT's rolldown-based Vite 8 toolchain into config evaluation, which needs Node ≥20.12 (the WXT *build* itself needs that Node too). To keep tests runnable on older Node, we use Vitest 2, let Vitest's built-in esbuild transform JSX (`esbuild.jsx: "automatic"`), and back the global `chrome.*`/`browser.*` API with `@webext-core/fake-browser` (reset between tests in the setup file). Because we skip WXT auto-imports in tests, source files in the test/render path must use **explicit** `@/*` imports rather than relying on auto-imports (this is the preferred convention anyway).
+
+Two layers:
+- **Unit** — pure logic with no DOM: `utils/scoring/scoreActions`, `utils/actionPanelActions` (`getPanelActions`), `hooks/usePalette` (`paletteReducer`), `utils/favorites`, and the extracted palette helpers `utils/paletteRun` (`buildRunPlan` — per-source ⏎ routing) and `utils/listComposition` (dedup + section grouping).
+- **Component/flow** — `components/Palette.test.tsx` renders `<Palette embedded />` against a mocked `messageBackground`, drives real `Enter`/`Arrow`/`Tab` keystrokes, and asserts the message sent per row type. Keyboard handling reads from reducer state (not the DOM), so the flow is testable even though the react-window list doesn't lay out in jsdom; `ResizeObserver` is stubbed in the setup so the list mounts.
+
+When extracting decision logic out of a component for testability, put the pure function in `utils/` and have the component call it (see `buildRunPlan`).
 
 ## Architecture
 
