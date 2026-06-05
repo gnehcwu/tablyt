@@ -16,6 +16,8 @@ function makeCtx(over: Partial<PanelActionCtx> = {}): PanelActionCtx {
     closeTab: vi.fn(),
     removeBookmark: vi.fn(),
     openCommand: vi.fn(),
+    moveBookmark: vi.fn(),
+    bookmarkToFolder: vi.fn(),
     ...over,
   };
 }
@@ -32,13 +34,21 @@ describe("getPanelActions", () => {
   describe("tab rows", () => {
     const tab: ActionItem = { id: 1, title: "Tab", url: "https://t.com", source: "tab" };
 
-    it("offers switch, duplicate, bookmark, close", () => {
-      expect(keys(getPanelActions(tab, makeCtx()))).toEqual(["switch", "duplicate", "bookmark", "close"]);
+    it("offers switch, duplicate, bookmark, bookmark-to-folder, close", () => {
+      expect(keys(getPanelActions(tab, makeCtx()))).toEqual([
+        "switch",
+        "duplicate",
+        "bookmark",
+        "bookmark-folder",
+        "close",
+      ]);
     });
 
-    it("offers 'Remove bookmark' instead of 'Bookmark' when the tab is already bookmarked", () => {
+    it("offers 'Remove bookmark' and drops bookmark-to-folder when the tab is already bookmarked", () => {
       const bookmarkedTab = { ...tab, bookmarkId: "bk-1" };
-      expect(keys(getPanelActions(bookmarkedTab, makeCtx()))).toContain("unbookmark");
+      const ks = keys(getPanelActions(bookmarkedTab, makeCtx()));
+      expect(ks).toContain("unbookmark");
+      expect(ks).not.toContain("bookmark-folder");
     });
 
     it("wires each action to its ctx operation", () => {
@@ -47,17 +57,25 @@ describe("getPanelActions", () => {
 
       actions.find((a) => a.key === "switch")!.run();
       actions.find((a) => a.key === "close")!.run();
+      actions.find((a) => a.key === "bookmark-folder")!.run();
 
       expect(ctx.switchToTab).toHaveBeenCalledWith(tab);
       expect(ctx.closeTab).toHaveBeenCalledWith(tab);
+      expect(ctx.bookmarkToFolder).toHaveBeenCalledWith(tab);
     });
   });
 
   describe("bookmark rows", () => {
     const bookmark: ActionItem = { id: "b1", title: "BM", url: "https://b.com", source: "bookmark" };
 
-    it("offers open, favorite, remove", () => {
-      expect(keys(getPanelActions(bookmark, makeCtx()))).toEqual(["open", "favorite", "remove"]);
+    it("offers open, favorite, move, remove", () => {
+      expect(keys(getPanelActions(bookmark, makeCtx()))).toEqual(["open", "favorite", "move", "remove"]);
+    });
+
+    it("wires the move action to ctx.moveBookmark", () => {
+      const ctx = makeCtx();
+      getPanelActions(bookmark, ctx).find((a) => a.key === "move")!.run();
+      expect(ctx.moveBookmark).toHaveBeenCalledWith(bookmark);
     });
 
     it("labels the favorite action based on current favorite state", () => {
@@ -94,7 +112,7 @@ describe("getPanelActions", () => {
         favoriteKind: "bookmark",
       };
 
-      expect(keys(getPanelActions(fav, makeCtx()))).toEqual(["open", "favorite", "remove"]);
+      expect(keys(getPanelActions(fav, makeCtx()))).toEqual(["open", "favorite", "move", "remove"]);
     });
 
     it("routes a favorited browser action to the action set", () => {

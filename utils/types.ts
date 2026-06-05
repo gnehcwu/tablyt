@@ -11,7 +11,7 @@ export interface ActionItem {
   actionMode?: string;
   query?: string;
   hint?: string;
-  source?: "tab" | "bookmark" | "action" | "history" | "favorite";
+  source?: "tab" | "bookmark" | "action" | "history" | "favorite" | "folder";
   // When `source === "favorite"`, records the underlying item type so the
   // action panel can offer the right actions (bookmark vs browser action).
   favoriteKind?: "bookmark" | "action";

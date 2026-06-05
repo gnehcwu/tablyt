@@ -8,7 +8,7 @@ import { Kbd } from "./ui/kbd";
 import { Empty, EmptyHeader, EmptyDescription, EmptyMedia, EmptyTitle } from "./ui/empty";
 import { Item, ItemTitle, ItemContent, ItemMedia, ItemDescription } from "./ui/item";
 import { Skeleton } from "./ui/skeleton";
-import { Bookmark, Shell } from "lucide-react";
+import { Bookmark, Folder, Shell } from "lucide-react";
 import "@/assets/tailwind.css";
 
 const ELLIPSIS = "…";
@@ -154,11 +154,16 @@ const Row = ({
   const isSelected = itemIndex === selected;
   const isBookmarkedRow = (source === "tab" || source === "history") && !!bookmarkId;
 
-  // Drop the redundant top-level root ("Bookmarks Bar" / "Other Bookmarks")
-  // from the badge — it's on nearly every path, so the nested folders carry the
-  // signal. The full path stays available on hover via the title attribute.
+  const isFolder = source === "folder";
+
+  // Bookmark rows drop the redundant top-level root ("Bookmarks Bar" / "Other
+  // Bookmarks") and middle-truncate the remaining path to a fixed budget — the
+  // nested folders carry the signal and the full path is on hover. Folder rows
+  // (the move-bookmark picker) instead show the complete path and rely on CSS
+  // ellipsis to truncate only when it actually overflows the badge.
   const folderSegments = path ? path.split(BOOKMARK_PATH_SEPARATOR) : [];
   const folderPath = folderSegments.length > 1 ? folderSegments.slice(1).join(BOOKMARK_PATH_SEPARATOR) : path;
+  const badgeLabel = isFolder ? path ?? "" : truncatePath(folderPath ?? "", 30);
 
   return (
     <Item
@@ -170,14 +175,24 @@ const Row = ({
       }`}
       style={style}
     >
-      <ItemMedia className="self-center!">{icon ? icon : <Favicon url={url!} />}</ItemMedia>
+      <ItemMedia className="self-center!">
+        {icon ? (
+          icon
+        ) : source === "folder" ? (
+          <Folder className="w-5 h-5 text-neutral-500 dark:text-neutral-400" aria-label="Folder" />
+        ) : (
+          <Favicon url={url!} />
+        )}
+      </ItemMedia>
       <ItemContent className="gap-0 flex-1 min-w-0">
         <ItemTitle className="font-normal text-sm line-clamp-1 wrap-anywhere dark:text-neutral-200 text-neutral-950">
           {title || "-"}
         </ItemTitle>
-        <ItemDescription className="font-normal text-xs line-clamp-1 wrap-anywhere text-neutral-500 dark:text-neutral-400">
-          {domain || "-"}
-        </ItemDescription>
+        {source !== "folder" && (
+          <ItemDescription className="font-normal text-xs line-clamp-1 wrap-anywhere text-neutral-500 dark:text-neutral-400">
+            {domain || "-"}
+          </ItemDescription>
+        )}
       </ItemContent>
       <ItemContent className="flex-none text-center">
         {isBookmarkedRow ? (
@@ -200,7 +215,7 @@ const Row = ({
             variant="outline"
             title={path}
           >
-            {truncatePath(folderPath ?? "", 30)}
+            <span className="min-w-0 truncate">{badgeLabel}</span>
           </Badge>
         ) : null}
       </ItemContent>

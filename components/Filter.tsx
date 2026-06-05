@@ -1,6 +1,6 @@
 import React, { useRef, useEffect, useState, useMemo } from "react";
 import debounce from "lodash.debounce";
-import { DEBOUNCE_DELAY } from "@/utils/constants";
+import { DEBOUNCE_DELAY, ACTION_MODE } from "@/utils/constants";
 import { Badge } from "./ui/badge";
 import { Search } from "lucide-react";
 import "@/assets/tailwind.css";
@@ -47,7 +47,13 @@ function Filter({ value, command, onValueChange }: FilterProps) {
         className={`dark:text-neutral-200 text-neutral-950 outline-none border-none box-shadow-none focus:outline-none active:outline-none flex-1 bg-transparent text-sm font-mono selection:bg-neutral-900 selection:text-neutral-100 dark:selection:bg-neutral-200 dark:selection:text-neutral-900`}
         ref={inputRef}
         aria-label="Search"
-        placeholder="Type to search..."
+        placeholder={
+          command === ACTION_MODE.MOVE
+            ? "Move to folder…"
+            : command === ACTION_MODE.BOOKMARK
+              ? "Bookmark to folder…"
+              : "Type to search..."
+        }
         value={inputValue}
         onChange={handleInput}
         autoComplete="off"

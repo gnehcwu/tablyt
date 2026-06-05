@@ -4,6 +4,7 @@ import {
   BP_CLOSE_TAB,
   BP_REMOVE_BOOKMARK,
   BP_ADD_BOOKMARK,
+  BP_MOVE_BOOKMARK,
   BP_TOGGLE_MUTE,
   BP_OPEN_OPTIONS,
   BP_SEARCH_WEB,
@@ -23,6 +24,7 @@ export interface ActionRequest {
   title?: string;
   tabId?: number;
   bookmarkId?: string;
+  parentId?: string;
   query?: string;
 }
 
@@ -69,6 +71,31 @@ export function transformBookmarks(
 export async function extractBookmarks(browser: WxtBrowser): Promise<ActionItem[]> {
   const bookmarkNodes = await browser.bookmarks.getTree();
   return transformBookmarks((bookmarkNodes[0]?.children as BookmarkNode[]) || []);
+}
+
+// Flatten the bookmark tree into its folders (the move-bookmark destinations).
+// A node is a folder when it has no `url`; we include it and recurse, building
+// the same breadcrumb `path` as `transformBookmarks`. Leaf bookmarks are skipped.
+export function transformFolders(
+  bookmarkNodes: BookmarkNode[] = [],
+  parent = "",
+  folders: ActionItem[] = []
+): ActionItem[] {
+  for (const item of bookmarkNodes) {
+    if (item.url) continue;
+    const path = parent ? `${parent}${BOOKMARK_PATH_SEPARATOR}${item.title}` : item.title;
+    // Only `path` (the parent breadcrumb) is set — it surfaces as the right-side
+    // badge. No `domain`, so the row renders a single title line with no subtitle.
+    folders.push({ id: item.id, title: item.title, path: parent, source: "folder" });
+    if (item.children) transformFolders(item.children, path, folders);
+  }
+
+  return folders;
+}
+
+export async function extractFolders(browser: WxtBrowser): Promise<ActionItem[]> {
+  const bookmarkNodes = await browser.bookmarks.getTree();
+  return transformFolders((bookmarkNodes[0]?.children as BookmarkNode[]) || []);
 }
 
 // All currently open tabs across every window (not just the current one).
@@ -182,13 +209,31 @@ async function removeBookmark(browser: WxtBrowser, bookmarkId?: string): Promise
 }
 
 // Idempotent: skip creating when the URL is already bookmarked so repeated
-// presses don't pile up duplicates.
-async function addBookmark(browser: WxtBrowser, url?: string, title?: string): Promise<ActionResponse> {
+// presses don't pile up duplicates. When `parentId` is given (bookmark-to-folder),
+// the new bookmark is created inside that folder.
+async function addBookmark(
+  browser: WxtBrowser,
+  url?: string,
+  title?: string,
+  parentId?: string
+): Promise<ActionResponse> {
   if (!url) return { success: false };
   try {
     const existing = await browser.bookmarks.search({ url });
     if (existing.length > 0) return { success: true };
-    await browser.bookmarks.create({ title: title || url, url });
+    await browser.bookmarks.create({ title: title || url, url, ...(parentId ? { parentId } : {}) });
+    return { success: true };
+  } catch {
+    return { success: false };
+  }
+}
+
+// Move an existing bookmark into another folder. Chrome's `move` reorders within
+// the target folder when no index is given (appends), which is what we want.
+async function moveBookmark(browser: WxtBrowser, bookmarkId?: string, parentId?: string): Promise<ActionResponse> {
+  if (!bookmarkId || !parentId) return { success: false };
+  try {
+    await browser.bookmarks.move(bookmarkId, { parentId });
     return { success: true };
   } catch {
     return { success: false };
@@ -218,7 +263,7 @@ async function openOptions(browser: WxtBrowser): Promise<ActionResponse> {
 // owns (so the caller can decline it). Centralizing the routing here makes it
 // unit-testable against a mock browser, independent of the WXT background shell.
 export function handleActionMessage(browser: WxtBrowser, request: ActionRequest): Promise<ActionResponse> | null {
-  const { action, url, title, tabId, bookmarkId, query } = request || {};
+  const { action, url, title, tabId, bookmarkId, parentId, query } = request || {};
 
   switch (action) {
     case BP_SEARCH_WEB:
@@ -233,7 +278,9 @@ export function handleActionMessage(browser: WxtBrowser, request: ActionRequest)
     case BP_REMOVE_BOOKMARK:
       return removeBookmark(browser, bookmarkId);
     case BP_ADD_BOOKMARK:
-      return addBookmark(browser, url, title);
+      return addBookmark(browser, url, title, parentId);
+    case BP_MOVE_BOOKMARK:
+      return moveBookmark(browser, bookmarkId, parentId);
     case BP_TOGGLE_MUTE:
       return toggleMute(browser);
     case BP_OPEN_OPTIONS:

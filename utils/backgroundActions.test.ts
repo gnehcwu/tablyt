@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import {
   transformBookmarks,
+  transformFolders,
   getHistories,
   handleActionMessage,
   type WxtBrowser,
@@ -11,6 +12,7 @@ import {
   BP_CLOSE_TAB,
   BP_REMOVE_BOOKMARK,
   BP_ADD_BOOKMARK,
+  BP_MOVE_BOOKMARK,
   BP_TOGGLE_MUTE,
   BP_OPEN_DOWNLOADS_TAB,
   BROWSER_ACTION_URL_MAP,
@@ -33,6 +35,7 @@ function makeBrowser() {
       search: vi.fn().mockResolvedValue([]),
       create: vi.fn().mockResolvedValue({}),
       remove: vi.fn().mockResolvedValue(undefined),
+      move: vi.fn().mockResolvedValue({}),
     },
     history: { search: vi.fn().mockResolvedValue([]) },
     runtime: { openOptionsPage: vi.fn().mockResolvedValue(undefined) },
@@ -77,6 +80,34 @@ describe("transformBookmarks", () => {
 
     expect(result.map((b) => b.id)).toEqual(["bad"]);
     expect(result[0].domain).toBe(""); // URL() threw → empty domain, not a crash
+  });
+});
+
+describe("transformFolders", () => {
+  it("returns folders (not leaf bookmarks) with breadcrumb paths", () => {
+    const result = transformFolders([
+      {
+        id: "root",
+        title: "Bookmarks Bar",
+        children: [
+          { id: "1", title: "GitHub", url: "https://github.com" },
+          {
+            id: "f",
+            title: "Work",
+            children: [
+              { id: "2", title: "Docs", url: "https://docs.example.com" },
+              { id: "g", title: "Specs", children: [] },
+            ],
+          },
+        ],
+      },
+    ]);
+
+    // Bookmarks Bar, Work, Specs — leaf bookmarks excluded.
+    expect(result.map((f) => f.id)).toEqual(["root", "f", "g"]);
+    expect(result.every((f) => f.source === "folder")).toBe(true);
+    expect(result.find((f) => f.id === "f")).toMatchObject({ title: "Work", path: "Bookmarks Bar" });
+    expect(result.find((f) => f.id === "g")).toMatchObject({ path: `Bookmarks Bar${" › "}Work` });
   });
 });
 
@@ -194,6 +225,32 @@ describe("handleActionMessage routing", () => {
     it("falls back to the url as the title when none is provided", async () => {
       await run({ action: BP_ADD_BOOKMARK, url: "https://x.com" });
       expect(browser.bookmarks.create).toHaveBeenCalledWith({ title: "https://x.com", url: "https://x.com" });
+    });
+
+    it("creates inside the target folder when a parentId is given (bookmark-to-folder)", async () => {
+      const res = await run({ action: BP_ADD_BOOKMARK, url: "https://n.com", title: "N", parentId: "folder-9" });
+      expect(browser.bookmarks.create).toHaveBeenCalledWith({ title: "N", url: "https://n.com", parentId: "folder-9" });
+      expect(res).toEqual({ success: true });
+    });
+  });
+
+  describe("BP_MOVE_BOOKMARK", () => {
+    it("moves a bookmark into the target folder", async () => {
+      const res = await run({ action: BP_MOVE_BOOKMARK, bookmarkId: "bk-1", parentId: "folder-9" });
+      expect(browser.bookmarks.move).toHaveBeenCalledWith("bk-1", { parentId: "folder-9" });
+      expect(res).toEqual({ success: true });
+    });
+
+    it("fails when the bookmark id or parent id is missing", async () => {
+      expect(await run({ action: BP_MOVE_BOOKMARK, bookmarkId: "bk-1" })).toEqual({ success: false });
+      expect(await run({ action: BP_MOVE_BOOKMARK, parentId: "folder-9" })).toEqual({ success: false });
+      expect(browser.bookmarks.move).not.toHaveBeenCalled();
+    });
+
+    it("reports failure when the move rejects", async () => {
+      browser.bookmarks.move.mockRejectedValue(new Error("can't move"));
+      const res = await run({ action: BP_MOVE_BOOKMARK, bookmarkId: "bk-1", parentId: "folder-9" });
+      expect(res).toEqual({ success: false });
     });
   });
 

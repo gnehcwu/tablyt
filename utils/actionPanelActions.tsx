@@ -5,6 +5,8 @@ import {
   BookmarkPlus,
   CopyPlus,
   CornerDownLeft,
+  FolderInput,
+  FolderPlus,
   Star,
   StarOff,
   Trash2,
@@ -29,6 +31,10 @@ export interface PanelActionCtx {
   removeItemBookmark: (item: ActionItem) => void;
   closeTab: (item: ActionItem) => void;
   removeBookmark: (item: ActionItem) => void;
+  // Enter folder-picker mode to move this bookmark into another folder.
+  moveBookmark: (item: ActionItem) => void;
+  // Enter folder-picker mode to bookmark this tab's URL into a chosen folder.
+  bookmarkToFolder: (item: ActionItem) => void;
   openCommand: (item: ActionItem) => void;
 }
 
@@ -78,6 +84,19 @@ export function getPanelActions(item: ActionItem, ctx: PanelActionCtx): SubActio
         },
         { key: "duplicate", label: "Duplicate", icon: <CopyPlus size={ICON_SIZE} />, run: () => ctx.duplicateTab(item) },
         bookmarkToggleAction(),
+        // Offer "Bookmark to folder…" only when the tab isn't already bookmarked
+        // — once it is, the toggle above becomes "Remove bookmark" and a fresh
+        // create-in-folder would just duplicate it.
+        ...(item.bookmarkId
+          ? []
+          : [
+              {
+                key: "bookmark-folder",
+                label: "Bookmark to folder",
+                icon: <FolderPlus size={ICON_SIZE} />,
+                run: () => ctx.bookmarkToFolder(item),
+              } as SubAction,
+            ]),
         { key: "close", label: "Close tab", icon: <X size={ICON_SIZE} />, run: () => ctx.closeTab(item) },
       ];
     case "bookmark":
@@ -90,6 +109,12 @@ export function getPanelActions(item: ActionItem, ctx: PanelActionCtx): SubActio
           run: () => ctx.open(item),
         },
         favoriteAction(),
+        {
+          key: "move",
+          label: "Move to folder",
+          icon: <FolderInput size={ICON_SIZE} />,
+          run: () => ctx.moveBookmark(item),
+        },
         {
           key: "remove",
           label: "Remove bookmark",

@@ -18,6 +18,7 @@ import {
   BP_OPEN_SETTINGS_TAB,
   BP_OPEN_OPTIONS,
   ACTION_MODE,
+  FOLDER_PICK_MODES,
   BP_TOGGLE_MUTE,
   BP_SEARCH_WEB,
   BROWSER_ACTION_URL_MAP,
@@ -33,7 +34,7 @@ import useFavorites from "@/hooks/useFavorites";
 import useToast from "@/hooks/useToast";
 import { type FavoriteEntry } from "@/utils/favorites";
 import { getPanelActions, type PanelActionCtx } from "@/utils/actionPanelActions";
-import { BP_CLOSE_TAB, BP_REMOVE_BOOKMARK, BP_ADD_BOOKMARK } from "@/utils/constants";
+import { BP_CLOSE_TAB, BP_REMOVE_BOOKMARK, BP_ADD_BOOKMARK, BP_MOVE_BOOKMARK, BP_SEARCH_FOLDERS } from "@/utils/constants";
 import { buildRunPlan } from "@/utils/paletteRun";
 import { composeDefaultItems, composeHistoryItems, groupScoredItems } from "@/utils/listComposition";
 import {
@@ -50,6 +51,7 @@ import {
   Star,
   StarOff,
   Trash2,
+  FolderInput,
 } from "lucide-react";
 import "@/assets/tailwind.css";
 
@@ -118,6 +120,14 @@ const createWebSearchItem = (query: string): ActionItem => ({
   source: "action",
 });
 
+// The bookmark-folder picker (Move / Bookmark-to-folder modes) targets either an
+// existing bookmark to relocate, or a tab URL to create a bookmark for.
+type FolderTarget =
+  | { kind: "move"; bookmarkId: string; title: string }
+  | { kind: "create"; url: string; title: string };
+
+const isFolderPickMode = (command: string) => FOLDER_PICK_MODES.includes(command);
+
 interface PaletteProps {
   embedded?: boolean;
 }
@@ -132,6 +142,9 @@ function Palette({ embedded = false }: PaletteProps = {}) {
   // Action panel is ephemeral, view-specific state — kept local, not in the reducer.
   const [panelOpen, setPanelOpen] = useState(false);
   const [panelSelected, setPanelSelected] = useState(0);
+  // What the folder picker will act on, while a folder-pick mode is active.
+  // View-specific like the panel state, so it lives here rather than in the reducer.
+  const [folderTarget, setFolderTarget] = useState<FolderTarget | null>(null);
 
   const handleSearchValueChange = (value: string) => {
     dispatch({ type: ACTION_TYPES.SET_FILTER, payload: value });
@@ -177,11 +190,42 @@ function Palette({ embedded = false }: PaletteProps = {}) {
     togglePalette();
   };
 
+  // In a folder-pick mode the highlighted row is a destination folder. Either
+  // move the stored bookmark into it (Move mode) or create a bookmark for the
+  // stored tab URL inside it (Bookmark mode), then exit the mode and confirm with
+  // a toast (keeps the palette open, like the other mutating panel actions).
+  const applyFolderPick = async (folder: ActionItem) => {
+    if (!folderTarget || folder.id == null) return;
+    const parentId = String(folder.id);
+
+    if (folderTarget.kind === "move") {
+      await messageBackground({ action: BP_MOVE_BOOKMARK, bookmarkId: folderTarget.bookmarkId, parentId }).catch(() => {});
+      showToast(`Moved to ${folder.title}`, <FolderInput size={14} />);
+    } else {
+      await messageBackground({
+        action: BP_ADD_BOOKMARK,
+        url: folderTarget.url,
+        title: folderTarget.title,
+        parentId,
+      }).catch(() => {});
+      showToast(`Bookmarked to ${folder.title}`, <BookmarkCheck size={14} />);
+    }
+
+    dispatch({ type: ACTION_TYPES.SET_COMMAND, payload: "" });
+    await fetchActionItems();
+    scoreActionList();
+  };
+
   const executeAction = () => {
     if (!open) return;
 
     const actionItem = scoredActionItems[selected];
     if (!actionItem) return;
+
+    if (isFolderPickMode(command)) {
+      applyFolderPick(actionItem);
+      return;
+    }
 
     runItem(actionItem);
   };
@@ -249,6 +293,18 @@ function Palette({ embedded = false }: PaletteProps = {}) {
       setPanelOpen(false);
       runItem(item);
     },
+    moveBookmark: (item) => {
+      if (item.id == null) return;
+      setFolderTarget({ kind: "move", bookmarkId: String(item.id), title: item.title });
+      setPanelOpen(false);
+      dispatch({ type: ACTION_TYPES.SET_COMMAND, payload: ACTION_MODE.MOVE });
+    },
+    bookmarkToFolder: (item) => {
+      if (!item.url) return;
+      setFolderTarget({ kind: "create", url: item.url, title: item.title });
+      setPanelOpen(false);
+      dispatch({ type: ACTION_TYPES.SET_COMMAND, payload: ACTION_MODE.BOOKMARK });
+    },
   };
 
   const panelActions = selectedItem ? getPanelActions(selectedItem, panelCtx) : [];
@@ -315,6 +371,10 @@ function Palette({ embedded = false }: PaletteProps = {}) {
       case "Tab":
         event.preventDefault();
 
+        // Tab only toggles History; in a folder-pick mode it's a no-op (use
+        // Backspace/Esc to leave) so the picker isn't yanked out from under the user.
+        if (isFolderPickMode(command)) return;
+
         if (command === ACTION_MODE.HISTORY) {
           dispatch({ type: ACTION_TYPES.SET_COMMAND, payload: "" });
         } else {
@@ -346,6 +406,12 @@ function Palette({ embedded = false }: PaletteProps = {}) {
       .catch(() => [] as ActionItem[]);
 
   async function fetchActionItems() {
+    // Folder-pick modes (Move / Bookmark-to-folder) show the bookmark folders.
+    if (isFolderPickMode(command)) {
+      actionListRef.current = await fetchItems(BP_SEARCH_FOLDERS);
+      return;
+    }
+
     // History is the one separate scope — it's unbounded, so it stays behind Tab.
     if (command === ACTION_MODE.HISTORY) {
       const [histories, rawBookmarks] = await Promise.all([
@@ -397,8 +463,9 @@ function Palette({ embedded = false }: PaletteProps = {}) {
     const trimmedSearch = search.trim();
     const scored = scoreActions(actionListRef.current, search);
 
-    // History is its own homogeneous scope, so it isn't regrouped.
-    if (command === ACTION_MODE.HISTORY) {
+    // History and the folder-pick modes are homogeneous scopes (histories /
+    // folders), so they aren't regrouped into sections.
+    if (command === ACTION_MODE.HISTORY || isFolderPickMode(command)) {
       dispatch({ type: ACTION_TYPES.SET_SCORED_ITEMS, payload: scored });
       return;
     }
@@ -421,6 +488,12 @@ function Palette({ embedded = false }: PaletteProps = {}) {
       payload: composed,
     });
   }
+
+  // Drop the folder-pick target whenever the mode leaves a picker (exited via
+  // Backspace/Esc or completed), so a stale target can't be acted on later.
+  useEffect(() => {
+    if (!isFolderPickMode(command)) setFolderTarget(null);
+  }, [command]);
 
   useEffect(() => {
     // Track command changes and trigger animation only when command actually changes

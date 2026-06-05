@@ -1,8 +1,15 @@
 import { browser } from "wxt/browser";
-import { BP_TOGGLE_PALETTE, BP_SEARCH_BOOKMARKS, BP_SEARCH_OPENED_TABS, BP_SEARCH_HISTORIES } from "@/utils/constants";
+import {
+  BP_TOGGLE_PALETTE,
+  BP_SEARCH_BOOKMARKS,
+  BP_SEARCH_OPENED_TABS,
+  BP_SEARCH_HISTORIES,
+  BP_SEARCH_FOLDERS,
+} from "@/utils/constants";
 import type { ActionItem } from "@/utils/types";
 import {
   extractBookmarks,
+  extractFolders,
   getOpenedTabs,
   getHistories,
   getActiveTab,
@@ -67,6 +74,12 @@ export default defineBackground(() => {
         return true;
       } else if (request.action === BP_SEARCH_HISTORIES) {
         getHistories(browser).then((items) => sendResponse({ items }));
+        return true;
+      } else if (request.action === BP_SEARCH_FOLDERS) {
+        extractFolders(browser).then(
+          (items) => sendResponse({ items }),
+          () => sendResponse({ items: [] })
+        );
         return true;
       }
 

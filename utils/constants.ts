@@ -14,6 +14,8 @@ export const BP_DUPLICATE_TAB = "bp-duplicate-tab";
 export const BP_CLOSE_TAB = "bp-close-tab";
 export const BP_REMOVE_BOOKMARK = "bp-remove-bookmark";
 export const BP_ADD_BOOKMARK = "bp-add-bookmark";
+export const BP_MOVE_BOOKMARK = "bp-move-bookmark";
+export const BP_SEARCH_FOLDERS = "bp-search-folders";
 export const BP_OPEN_HISTORY_TAB = "bp-open-history-tab";
 export const BP_OPEN_DOWNLOADS_TAB = "bp-open-downloads-tab";
 export const BP_OPEN_EXTENSIONS_TAB = "bp-open-extensions-tab";
@@ -34,7 +36,14 @@ export const ACTION_TYPES = {
 
 export const ACTION_MODE = {
   HISTORY: "History",
+  MOVE: "Move",
+  BOOKMARK: "Bookmark",
 } as const;
+
+// Modes that turn the list into a bookmark-folder picker (move an existing
+// bookmark, or bookmark a tab into a chosen folder). They share the same
+// fetch/score/keyboard handling; only the chosen-folder action differs.
+export const FOLDER_PICK_MODES: string[] = [ACTION_MODE.MOVE, ACTION_MODE.BOOKMARK];
 
 export const BROWSER_ACTION_URL_MAP: Record<string, string> = {
   [BP_OPEN_DOWNLOADS_TAB]: "chrome://downloads",
