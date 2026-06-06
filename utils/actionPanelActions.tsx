@@ -7,6 +7,7 @@ import {
   CornerDownLeft,
   FolderInput,
   FolderPlus,
+  Link,
   Star,
   StarOff,
   Trash2,
@@ -14,8 +15,33 @@ import {
 } from "lucide-react";
 import type { ActionItem, SubAction } from "@/utils/types";
 import { BP_SEARCH_WEB } from "@/utils/constants";
+import { scoreItem } from "@/utils/scoring/score";
 
 const ICON_SIZE = 16;
+
+// Keep matches within this fraction of the best hit — same relative cutoff the
+// main palette scorer uses, so the action search prunes scattered junk while
+// keeping everything when the whole (small) list only loosely matches.
+const RELATIVE_MATCH_RATIO = 0.3;
+
+// Fuzzy-filter the panel's actions by their label, best match first. Reuses the
+// palette's fuzzy scorer (`scoreItem`) so typing in the action search feels the
+// same as searching the main list — acronyms and word-jumps match, not just
+// substrings. An empty query keeps the actions in their declared order.
+export function filterPanelActions(actions: SubAction[], query: string): SubAction[] {
+  const q = query.trim();
+  if (!q) return actions;
+
+  const scored = actions
+    .map((action) => ({ action, score: scoreItem(action.label, q) }))
+    .filter((entry) => entry.score > 0)
+    .sort((a, b) => b.score - a.score);
+
+  if (scored.length === 0) return [];
+
+  const cutoff = scored[0].score * RELATIVE_MATCH_RATIO;
+  return scored.filter((entry) => entry.score >= cutoff).map((entry) => entry.action);
+}
 
 // Domain operations the palette exposes to the panel. Each fully encapsulates
 // the message + close/refresh/panel behavior so this module stays a thin
@@ -35,6 +61,8 @@ export interface PanelActionCtx {
   moveBookmark: (item: ActionItem) => void;
   // Enter folder-picker mode to bookmark this tab's URL into a chosen folder.
   bookmarkToFolder: (item: ActionItem) => void;
+  // Copy the item's URL to the clipboard.
+  copyLink: (item: ActionItem) => void;
   openCommand: (item: ActionItem) => void;
 }
 
@@ -72,6 +100,13 @@ export function getPanelActions(item: ActionItem, ctx: PanelActionCtx): SubActio
         }
       : { key: "bookmark", label: "Bookmark", icon: <BookmarkPlus size={ICON_SIZE} />, run: () => ctx.bookmarkItem(item) };
 
+  const copyLinkAction = (): SubAction => ({
+    key: "copy-link",
+    label: "Copy link",
+    icon: <Link size={ICON_SIZE} />,
+    run: () => ctx.copyLink(item),
+  });
+
   switch (panelKind(item)) {
     case "tab":
       return [
@@ -83,6 +118,7 @@ export function getPanelActions(item: ActionItem, ctx: PanelActionCtx): SubActio
           run: () => ctx.switchToTab(item),
         },
         { key: "duplicate", label: "Duplicate", icon: <CopyPlus size={ICON_SIZE} />, run: () => ctx.duplicateTab(item) },
+        copyLinkAction(),
         bookmarkToggleAction(),
         // Offer "Bookmark to folder…" only when the tab isn't already bookmarked
         // — once it is, the toggle above becomes "Remove bookmark" and a fresh
@@ -108,6 +144,7 @@ export function getPanelActions(item: ActionItem, ctx: PanelActionCtx): SubActio
           shortcut: "↵",
           run: () => ctx.open(item),
         },
+        copyLinkAction(),
         favoriteAction(),
         {
           key: "move",

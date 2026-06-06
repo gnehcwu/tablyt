@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
-import { getPanelActions, type PanelActionCtx } from "@/utils/actionPanelActions";
+import { getPanelActions, filterPanelActions, type PanelActionCtx } from "@/utils/actionPanelActions";
 import { BP_SEARCH_WEB, BP_OPEN_OPTIONS } from "@/utils/constants";
-import type { ActionItem } from "@/utils/types";
+import type { ActionItem, SubAction } from "@/utils/types";
 
 // A ctx with every operation stubbed; isFavorite defaults to false.
 function makeCtx(over: Partial<PanelActionCtx> = {}): PanelActionCtx {
@@ -18,6 +18,7 @@ function makeCtx(over: Partial<PanelActionCtx> = {}): PanelActionCtx {
     openCommand: vi.fn(),
     moveBookmark: vi.fn(),
     bookmarkToFolder: vi.fn(),
+    copyLink: vi.fn(),
     ...over,
   };
 }
@@ -34,10 +35,11 @@ describe("getPanelActions", () => {
   describe("tab rows", () => {
     const tab: ActionItem = { id: 1, title: "Tab", url: "https://t.com", source: "tab" };
 
-    it("offers switch, duplicate, bookmark, bookmark-to-folder, close", () => {
+    it("offers switch, duplicate, copy-link, bookmark, bookmark-to-folder, close", () => {
       expect(keys(getPanelActions(tab, makeCtx()))).toEqual([
         "switch",
         "duplicate",
+        "copy-link",
         "bookmark",
         "bookmark-folder",
         "close",
@@ -58,18 +60,20 @@ describe("getPanelActions", () => {
       actions.find((a) => a.key === "switch")!.run();
       actions.find((a) => a.key === "close")!.run();
       actions.find((a) => a.key === "bookmark-folder")!.run();
+      actions.find((a) => a.key === "copy-link")!.run();
 
       expect(ctx.switchToTab).toHaveBeenCalledWith(tab);
       expect(ctx.closeTab).toHaveBeenCalledWith(tab);
       expect(ctx.bookmarkToFolder).toHaveBeenCalledWith(tab);
+      expect(ctx.copyLink).toHaveBeenCalledWith(tab);
     });
   });
 
   describe("bookmark rows", () => {
     const bookmark: ActionItem = { id: "b1", title: "BM", url: "https://b.com", source: "bookmark" };
 
-    it("offers open, favorite, move, remove", () => {
-      expect(keys(getPanelActions(bookmark, makeCtx()))).toEqual(["open", "favorite", "move", "remove"]);
+    it("offers open, copy-link, favorite, move, remove", () => {
+      expect(keys(getPanelActions(bookmark, makeCtx()))).toEqual(["open", "copy-link", "favorite", "move", "remove"]);
     });
 
     it("wires the move action to ctx.moveBookmark", () => {
@@ -103,6 +107,40 @@ describe("getPanelActions", () => {
     });
   });
 
+  describe("filterPanelActions (fuzzy)", () => {
+    const mk = (key: string, label: string): SubAction => ({ key, label, run: vi.fn() });
+    const actions = [
+      mk("switch", "Switch to"),
+      mk("duplicate", "Duplicate"),
+      mk("bookmark", "Bookmark"),
+      mk("move", "Move to folder"),
+      mk("close", "Close tab"),
+    ];
+
+    it("returns actions unchanged for an empty query", () => {
+      expect(filterPanelActions(actions, "")).toEqual(actions);
+      expect(filterPanelActions(actions, "   ")).toEqual(actions);
+    });
+
+    it("matches a contiguous substring and drops non-matches", () => {
+      expect(keys(filterPanelActions(actions, "close"))).toEqual(["close"]);
+    });
+
+    it("matches a fuzzy acronym / word-jump, not just substrings", () => {
+      // "mtf" → Move To Folder via word starts; no substring "mtf" exists.
+      expect(keys(filterPanelActions(actions, "mtf"))).toContain("move");
+    });
+
+    it("ranks the best match first", () => {
+      // "bo" matches the start of "Bookmark" strongly; it should lead.
+      expect(keys(filterPanelActions(actions, "bo"))[0]).toBe("bookmark");
+    });
+
+    it("returns nothing when no label matches", () => {
+      expect(filterPanelActions(actions, "zzzzz")).toEqual([]);
+    });
+  });
+
   describe("favorite rows", () => {
     it("routes a favorited bookmark to the bookmark action set", () => {
       const fav: ActionItem = {
@@ -112,7 +150,7 @@ describe("getPanelActions", () => {
         favoriteKind: "bookmark",
       };
 
-      expect(keys(getPanelActions(fav, makeCtx()))).toEqual(["open", "favorite", "move", "remove"]);
+      expect(keys(getPanelActions(fav, makeCtx()))).toEqual(["open", "copy-link", "favorite", "move", "remove"]);
     });
 
     it("routes a favorited browser action to the action set", () => {

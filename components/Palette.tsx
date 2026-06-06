@@ -52,6 +52,7 @@ import {
   StarOff,
   Trash2,
   FolderInput,
+  Link,
 } from "lucide-react";
 import "@/assets/tailwind.css";
 
@@ -139,9 +140,9 @@ function Palette({ embedded = false }: PaletteProps = {}) {
   const [animationTrigger, setAnimationTrigger] = useState(0);
   const { favorites, isFavorite, toggle } = useFavorites();
   const { toast, showToast } = useToast();
-  // Action panel is ephemeral, view-specific state — kept local, not in the reducer.
+  // Action panel is ephemeral, view-specific state — kept local, not in the
+  // reducer. The panel owns its own selection/search internally once open.
   const [panelOpen, setPanelOpen] = useState(false);
-  const [panelSelected, setPanelSelected] = useState(0);
   // What the folder picker will act on, while a folder-pick mode is active.
   // View-specific like the panel state, so it lives here rather than in the reducer.
   const [folderTarget, setFolderTarget] = useState<FolderTarget | null>(null);
@@ -305,6 +306,13 @@ function Palette({ embedded = false }: PaletteProps = {}) {
       setPanelOpen(false);
       dispatch({ type: ACTION_TYPES.SET_COMMAND, payload: ACTION_MODE.BOOKMARK });
     },
+    copyLink: (item) => {
+      // Clipboard access lives in the content script (the panel), within this
+      // Enter/click user gesture — no background round-trip needed.
+      if (item.url) navigator.clipboard?.writeText(item.url).catch(() => {});
+      setPanelOpen(false);
+      showToast("Link copied", <Link size={14} />);
+    },
   };
 
   const panelActions = selectedItem ? getPanelActions(selectedItem, panelCtx) : [];
@@ -312,46 +320,13 @@ function Palette({ embedded = false }: PaletteProps = {}) {
   const handleKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
     event.stopPropagation();
 
-    // ⌘K / Ctrl+K toggles the action panel for the highlighted item.
+    // ⌘K / Ctrl+K opens the action panel for the highlighted item. While the
+    // panel is open it owns the keyboard (its own onKeyDown stops propagation),
+    // so this only ever fires to open it.
     if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
       event.preventDefault();
-      if (panelOpen) {
-        setPanelOpen(false);
-      } else if (selectedItem && panelActions.length > 0) {
-        setPanelSelected(0);
-        setPanelOpen(true);
-      }
+      if (selectedItem && panelActions.length > 0) setPanelOpen(true);
       return;
-    }
-
-    // While the panel is open it owns the keyboard; swallow everything else so
-    // the search input underneath doesn't change.
-    if (panelOpen) {
-      switch (event.key) {
-        case "ArrowDown":
-        case "ArrowUp":
-        case "Tab": {
-          event.preventDefault();
-          const total = panelActions.length;
-          if (!total) return;
-          const dir = event.key === "ArrowDown" || (event.key === "Tab" && !event.shiftKey) ? 1 : -1;
-          setPanelSelected((panelSelected + dir + total) % total);
-          return;
-        }
-        case "Enter": {
-          event.preventDefault();
-          panelActions[panelSelected]?.run();
-          return;
-        }
-        case "Escape": {
-          event.preventDefault();
-          setPanelOpen(false);
-          return;
-        }
-        default:
-          event.preventDefault();
-          return;
-      }
     }
 
     const key = event.key as SupportedKey;
@@ -547,7 +522,7 @@ function Palette({ embedded = false }: PaletteProps = {}) {
       key={animationTrigger}
       data-animate={animationTrigger > 0 ? "true" : "false"}
       className={`border border-neutral-300 dark:border-neutral-600 relative bg-white dark:bg-black rounded-3xl shadow-2xl grid grid-rows-[min-content_1fr_min-content] animate-in zoom-in-95 duration-125 ${
-        embedded ? "w-full max-w-[789px]" : "w-[min(789px,100vw)]"
+        embedded ? "w-full max-w-[749px]" : "w-[min(749px,100vw)]"
       }`}
       onKeyDown={handleKeyDown}
       onContextMenu={(event) => event.preventDefault()}
@@ -569,9 +544,6 @@ function Palette({ embedded = false }: PaletteProps = {}) {
         <ActionPanel
           itemLabel={selectedItem.title}
           actions={panelActions}
-          selected={panelSelected}
-          onSelect={setPanelSelected}
-          onRun={(action) => action.run()}
           onDismiss={() => setPanelOpen(false)}
         />
       )}

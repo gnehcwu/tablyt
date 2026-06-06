@@ -85,7 +85,7 @@ const Favicon = memo(({ url }: { url: string }) => {
 
 const EmptyState = memo(() => {
   return (
-    <Empty className="font-mono h-[416px]">
+    <Empty className="font-mono h-[396px]">
       <EmptyHeader>
         <EmptyMedia variant="default">
           <Shell size={48} className="dark:text-neutral-400 text-neutral-600" />
@@ -107,7 +107,7 @@ const SKELETON_WIDTHS = Array.from({ length: SKELETON_COUNT }, (_, i) => ({
 
 function LoadingState() {
   return (
-    <div className="flex flex-col justify-between h-[416px] py-2 px-3">
+    <div className="flex flex-col justify-between h-[396px] py-2 px-3">
       {SKELETON_WIDTHS.map(({ title, subtitle }) => (
         <Item role="listitem" size="sm" className="w-full h-[50px] rounded-xl p-1!">
           <ItemContent className="flex-1 flex flex-col content-center h-full gap-0 gap-y-2! justify-center">
@@ -270,7 +270,7 @@ function ActionList({ actions, selected, onSelect, onAction, loading }: ActionLi
         rowCount={rows.length}
         rowHeight={(index) => (rows[index]?.kind === "header" ? HEADER_HEIGHT : ROW_HEIGHT)}
         rowProps={{ rows, selected, onSelect, onAction }}
-        className="overscroll-contain scrollbar-hide h-[400px] w-full"
+        className="overscroll-contain scrollbar-hide h-[380px] w-full"
       />
     </div>
   );

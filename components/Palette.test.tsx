@@ -108,14 +108,12 @@ describe("Palette keyboard flows", () => {
     // Highlight the bookmark (bookmarks sort last; ArrowUp wraps to it).
     fireEvent.keyDown(input, { key: "ArrowUp" });
 
-    // ⌘K opens the action panel; bookmark actions are [open, favorite, move, remove].
+    // ⌘K opens the action panel; filter its actions via the panel search field
+    // and run the match with Enter → enters Move mode.
     fireEvent.keyDown(input, { key: "k", metaKey: true });
-    expect(await screen.findByText("Move to folder")).toBeInTheDocument();
-
-    // Navigate to "move" (index 2) and run it → enters Move mode.
-    fireEvent.keyDown(input, { key: "ArrowDown" });
-    fireEvent.keyDown(input, { key: "ArrowDown" });
-    fireEvent.keyDown(input, { key: "Enter" });
+    const panelSearch = await screen.findByLabelText("Search actions");
+    fireEvent.change(panelSearch, { target: { value: "move" } });
+    fireEvent.keyDown(panelSearch, { key: "Enter" });
 
     // The mode badge shows "Move", the folder list is fetched, and the folder
     // row is committed to the list before we select it.
@@ -141,17 +139,13 @@ describe("Palette keyboard flows", () => {
     render(<Palette embedded />);
     await waitForLoaded();
 
-    // The tab sorts first, so it's selected by default. Open its action panel:
-    // tab actions are [switch, duplicate, bookmark, bookmark-folder, close].
+    // The tab sorts first, so it's selected by default. Open its action panel and
+    // filter to "Bookmark to folder" via the panel search field, then run it.
     const input = screen.getByLabelText("Search");
     fireEvent.keyDown(input, { key: "k", metaKey: true });
-    expect(await screen.findByText("Bookmark to folder")).toBeInTheDocument();
-
-    // Navigate to "bookmark-folder" (index 3) and run it → enters Bookmark mode.
-    fireEvent.keyDown(input, { key: "ArrowDown" });
-    fireEvent.keyDown(input, { key: "ArrowDown" });
-    fireEvent.keyDown(input, { key: "ArrowDown" });
-    fireEvent.keyDown(input, { key: "Enter" });
+    const panelSearch = await screen.findByLabelText("Search actions");
+    fireEvent.change(panelSearch, { target: { value: "folder" } });
+    fireEvent.keyDown(panelSearch, { key: "Enter" });
 
     expect(await screen.findByText("Bookmark")).toBeInTheDocument();
     await waitFor(() => expect(sentTo("bp-search-folders")).toHaveLength(1));
@@ -165,6 +159,62 @@ describe("Palette keyboard flows", () => {
       expect(added).toHaveLength(1);
       expect(added[0]).toMatchObject({ url: "https://github.com", title: "GitHub", parentId: "folder-9" });
     });
+  });
+
+  it("copies an open tab's link via the action panel", async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, "clipboard", { value: { writeText }, configurable: true });
+    bg.tabs = [{ id: 7, title: "GitHub", url: "https://github.com", source: "tab" }];
+    render(<Palette embedded />);
+    await waitForLoaded();
+
+    const input = screen.getByLabelText("Search");
+    fireEvent.keyDown(input, { key: "k", metaKey: true });
+    const panelSearch = await screen.findByLabelText("Search actions");
+    fireEvent.change(panelSearch, { target: { value: "copy" } });
+    fireEvent.keyDown(panelSearch, { key: "Enter" });
+
+    await waitFor(() => expect(writeText).toHaveBeenCalledWith("https://github.com"));
+    expect(await screen.findByText("Link copied")).toBeInTheDocument();
+  });
+
+  it("filters the action panel via its search field and runs the match", async () => {
+    bg.tabs = [{ id: 7, title: "GitHub", url: "https://github.com", source: "tab" }];
+    render(<Palette embedded />);
+    await waitForLoaded();
+
+    const input = screen.getByLabelText("Search");
+    fireEvent.keyDown(input, { key: "k", metaKey: true });
+
+    // All tab actions are listed initially.
+    expect(await screen.findByText("Switch to")).toBeInTheDocument();
+    expect(screen.getByText("Close tab")).toBeInTheDocument();
+
+    // Typing narrows the list to the matching action(s).
+    const panelSearch = screen.getByLabelText("Search actions");
+    fireEvent.change(panelSearch, { target: { value: "close" } });
+    await waitFor(() => expect(screen.queryByText("Switch to")).toBeNull());
+    expect(screen.getByText("Close tab")).toBeInTheDocument();
+
+    // Enter runs the single remaining match.
+    fireEvent.keyDown(panelSearch, { key: "Enter" });
+    await waitFor(() => {
+      const closed = sentTo("bp-close-tab");
+      expect(closed).toHaveLength(1);
+      expect(closed[0]).toMatchObject({ tabId: 7 });
+    });
+  });
+
+  it("shows an empty state when no panel action matches the search", async () => {
+    bg.tabs = [{ id: 7, title: "GitHub", url: "https://github.com", source: "tab" }];
+    render(<Palette embedded />);
+    await waitForLoaded();
+
+    fireEvent.keyDown(screen.getByLabelText("Search"), { key: "k", metaKey: true });
+    const panelSearch = await screen.findByLabelText("Search actions");
+    fireEvent.change(panelSearch, { target: { value: "zzzzz" } });
+
+    expect(await screen.findByText("No matching actions")).toBeInTheDocument();
   });
 
   it("Tab switches into History mode and shows its badge", async () => {
