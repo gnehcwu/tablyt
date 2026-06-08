@@ -107,6 +107,21 @@ export function getPanelActions(item: ActionItem, ctx: PanelActionCtx): SubActio
     run: () => ctx.copyLink(item),
   });
 
+  // Offered only when the row isn't already bookmarked — once it is, the toggle
+  // above becomes "Remove bookmark" and a fresh create-in-folder would just
+  // duplicate it. Returns 0 or 1 actions so it can spread into an action list.
+  const bookmarkToFolderActions = (): SubAction[] =>
+    item.bookmarkId
+      ? []
+      : [
+          {
+            key: "bookmark-folder",
+            label: "Bookmark to folder",
+            icon: <FolderPlus size={ICON_SIZE} />,
+            run: () => ctx.bookmarkToFolder(item),
+          },
+        ];
+
   switch (panelKind(item)) {
     case "tab":
       return [
@@ -120,19 +135,7 @@ export function getPanelActions(item: ActionItem, ctx: PanelActionCtx): SubActio
         { key: "duplicate", label: "Duplicate", icon: <CopyPlus size={ICON_SIZE} />, run: () => ctx.duplicateTab(item) },
         copyLinkAction(),
         bookmarkToggleAction(),
-        // Offer "Bookmark to folder…" only when the tab isn't already bookmarked
-        // — once it is, the toggle above becomes "Remove bookmark" and a fresh
-        // create-in-folder would just duplicate it.
-        ...(item.bookmarkId
-          ? []
-          : [
-              {
-                key: "bookmark-folder",
-                label: "Bookmark to folder",
-                icon: <FolderPlus size={ICON_SIZE} />,
-                run: () => ctx.bookmarkToFolder(item),
-              } as SubAction,
-            ]),
+        ...bookmarkToFolderActions(),
         { key: "close", label: "Close tab", icon: <X size={ICON_SIZE} />, run: () => ctx.closeTab(item) },
       ];
     case "bookmark":
@@ -161,7 +164,6 @@ export function getPanelActions(item: ActionItem, ctx: PanelActionCtx): SubActio
       ];
     case "action":
       return [
-        favoriteAction(),
         {
           key: "open-command",
           label: "Open command",
@@ -169,6 +171,7 @@ export function getPanelActions(item: ActionItem, ctx: PanelActionCtx): SubActio
           shortcut: "↵",
           run: () => ctx.openCommand(item),
         },
+        favoriteAction(),
       ];
     case "history":
       return [
@@ -180,6 +183,7 @@ export function getPanelActions(item: ActionItem, ctx: PanelActionCtx): SubActio
           run: () => ctx.open(item),
         },
         bookmarkToggleAction(),
+        ...bookmarkToFolderActions(),
       ];
     default:
       return [];

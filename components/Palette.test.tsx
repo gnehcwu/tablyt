@@ -6,6 +6,7 @@ import {
   BP_OPEN_TAB,
 } from "@/utils/constants";
 import type { ActionItem } from "@/utils/types";
+import { setFavorites } from "@/utils/favorites";
 
 // Mutable fixtures the mocked background reads from, plus a record of every
 // message the palette sent. `vi.hoisted` lets the (hoisted) vi.mock factory
@@ -14,6 +15,7 @@ const bg = vi.hoisted(() => ({
   tabs: [] as ActionItem[],
   bookmarks: [] as ActionItem[],
   folders: [] as ActionItem[],
+  histories: [] as ActionItem[],
   calls: [] as { action: string; [k: string]: unknown }[],
 }));
 
@@ -23,7 +25,7 @@ vi.mock("@/utils/messageBackground", () => ({
     // String literals (not the imported constants) because the factory is hoisted.
     if (msg.action === "bp-search-opened-tabs") return Promise.resolve({ items: bg.tabs });
     if (msg.action === "bp-search-bookmarks") return Promise.resolve({ items: bg.bookmarks });
-    if (msg.action === "bp-search-histories") return Promise.resolve({ items: [] });
+    if (msg.action === "bp-search-histories") return Promise.resolve({ items: bg.histories });
     if (msg.action === "bp-search-folders") return Promise.resolve({ items: bg.folders });
     return Promise.resolve({ success: true });
   }),
@@ -36,6 +38,7 @@ beforeEach(() => {
   bg.tabs = [];
   bg.bookmarks = [];
   bg.folders = [];
+  bg.histories = [];
   bg.calls = [];
 });
 
@@ -226,5 +229,73 @@ describe("Palette keyboard flows", () => {
     // The mode badge renders the command label.
     expect(await screen.findByText("History")).toBeInTheDocument();
     await waitFor(() => expect(sentTo("bp-search-histories")).toHaveLength(1));
+  });
+
+  it("Backspace on empty input exits History mode", async () => {
+    render(<Palette embedded />);
+    await waitForLoaded();
+
+    fireEvent.keyDown(screen.getByLabelText("Search"), { key: "Tab" });
+    // In History mode the default-scope "Tab" hint is hidden.
+    await waitFor(() => expect(screen.queryByText("Tab")).toBeNull());
+
+    // The mode switch remounts the card, so re-query the input.
+    fireEvent.keyDown(screen.getByLabelText("Search"), { key: "Backspace" });
+
+    // Back in the default scope, the History/Tab hint returns.
+    expect(await screen.findByText("Tab")).toBeInTheDocument();
+  });
+
+  it("Enter on the web-search row searches the web with the typed query", async () => {
+    render(<Palette embedded />);
+    await waitForLoaded();
+
+    const input = screen.getByLabelText("Search");
+    fireEvent.change(input, { target: { value: "hello world" } });
+    // With no matching tabs/bookmarks, the synthetic web-search row is the only
+    // result, so it's selected by default.
+    fireEvent.keyDown(input, { key: "Enter" });
+
+    await waitFor(() => {
+      const searched = sentTo("bp-search-web");
+      expect(searched).toHaveLength(1);
+      expect(searched[0]).toMatchObject({ query: "hello world" });
+    });
+  });
+
+  it("opens a history row by URL and offers Remove bookmark when it's already bookmarked", async () => {
+    bg.histories = [{ title: "Docs", url: "https://docs.example.com" }];
+    bg.bookmarks = [{ id: "bk-9", title: "Docs", url: "https://docs.example.com", source: "bookmark" }];
+    render(<Palette embedded />);
+    await waitForLoaded();
+
+    fireEvent.keyDown(screen.getByLabelText("Search"), { key: "Tab" });
+    await screen.findByText("Docs");
+
+    // The history row was cross-referenced against bookmarks, so its panel offers
+    // "Remove bookmark" (not "Bookmark").
+    fireEvent.keyDown(screen.getByLabelText("Search"), { key: "k", metaKey: true });
+    const panelSearch = await screen.findByLabelText("Search actions");
+    expect(screen.getByText("Remove bookmark")).toBeInTheDocument();
+
+    // Running "Open" opens the history URL with no tabId.
+    fireEvent.change(panelSearch, { target: { value: "open" } });
+    fireEvent.keyDown(panelSearch, { key: "Enter" });
+    await waitFor(() => {
+      const opened = sentTo("bp-open-tab").filter((c) => c.url === "https://docs.example.com");
+      expect(opened).toHaveLength(1);
+      expect(opened[0].tabId).toBeUndefined();
+    });
+  });
+
+  it("pins a Favorites section for a stored favorite when the query is empty", async () => {
+    await setFavorites([
+      { kind: "bookmark", key: "https://fav.com", id: "bk-1", title: "Fav", url: "https://fav.com", domain: "fav.com" },
+    ]);
+    bg.bookmarks = [{ id: "bk-1", title: "Fav", url: "https://fav.com", source: "bookmark" }];
+    render(<Palette embedded />);
+    await waitForLoaded();
+
+    expect(await screen.findByText("Favorites")).toBeInTheDocument();
   });
 });

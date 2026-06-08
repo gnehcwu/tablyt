@@ -25,7 +25,7 @@ const truncateSegment = (segment: string, max: number): string => {
 // lopping whole folders off one end, split on the separator and shrink each
 // segment in its own middle, sharing the character budget across segments. A
 // single-segment string falls back to plain middle truncation.
-const truncatePath = (str: string, maxLength: number): string => {
+export const truncatePath = (str: string, maxLength: number): string => {
   if (str.length <= maxLength) return str;
 
   const segments = str.split(BOOKMARK_PATH_SEPARATOR);
@@ -64,7 +64,7 @@ type DisplayRow =
   | { kind: "header"; label: string }
   | { kind: "item"; item: ActionItem; itemIndex: number };
 
-function buildDisplayRows(actions: ActionItem[]): DisplayRow[] {
+export function buildDisplayRows(actions: ActionItem[]): DisplayRow[] {
   const rows: DisplayRow[] = [];
   let lastSource: string | null = null;
   actions.forEach((item, itemIndex) => {
@@ -108,8 +108,8 @@ const SKELETON_WIDTHS = Array.from({ length: SKELETON_COUNT }, (_, i) => ({
 function LoadingState() {
   return (
     <div className="flex flex-col justify-between h-[396px] py-2 px-3">
-      {SKELETON_WIDTHS.map(({ title, subtitle }) => (
-        <Item role="listitem" size="sm" className="w-full h-[50px] rounded-xl p-1!">
+      {SKELETON_WIDTHS.map(({ title, subtitle }, i) => (
+        <Item key={i} role="listitem" size="sm" className="w-full h-[50px] rounded-xl p-1!">
           <ItemContent className="flex-1 flex flex-col content-center h-full gap-0 gap-y-2! justify-center">
             <ItemTitle className="w-full">
               <Skeleton className="h-[13px]" style={{ width: `${title}%` }} />

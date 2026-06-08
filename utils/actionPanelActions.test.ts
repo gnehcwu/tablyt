@@ -94,16 +94,21 @@ describe("getPanelActions", () => {
   describe("browser action rows", () => {
     const action: ActionItem = { title: "Settings", action: BP_OPEN_OPTIONS, source: "action" };
 
-    it("offers favorite and open-command", () => {
-      expect(keys(getPanelActions(action, makeCtx()))).toEqual(["favorite", "open-command"]);
+    it("offers open-command first, then favorite", () => {
+      expect(keys(getPanelActions(action, makeCtx()))).toEqual(["open-command", "favorite"]);
     });
   });
 
   describe("history rows", () => {
     const history: ActionItem = { id: "h1", title: "Old", url: "https://o.com", source: "history" };
 
-    it("offers open and bookmark toggle", () => {
-      expect(keys(getPanelActions(history, makeCtx()))).toEqual(["open", "bookmark"]);
+    it("offers open, bookmark toggle, and bookmark-to-folder", () => {
+      expect(keys(getPanelActions(history, makeCtx()))).toEqual(["open", "bookmark", "bookmark-folder"]);
+    });
+
+    it("drops bookmark-to-folder once the row is already bookmarked", () => {
+      const bookmarked: ActionItem = { ...history, bookmarkId: "b1" };
+      expect(keys(getPanelActions(bookmarked, makeCtx()))).toEqual(["open", "unbookmark"]);
     });
   });
 
@@ -161,7 +166,7 @@ describe("getPanelActions", () => {
         favoriteKind: "action",
       };
 
-      expect(keys(getPanelActions(fav, makeCtx()))).toEqual(["favorite", "open-command"]);
+      expect(keys(getPanelActions(fav, makeCtx()))).toEqual(["open-command", "favorite"]);
     });
   });
 });

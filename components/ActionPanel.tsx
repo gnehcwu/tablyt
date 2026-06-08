@@ -2,7 +2,6 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import FocusLock from "react-focus-lock";
 import type { SubAction } from "@/utils/types";
 import { filterPanelActions } from "@/utils/actionPanelActions";
-import { Kbd } from "./ui/kbd";
 import "@/assets/tailwind.css";
 
 interface ActionPanelProps {
@@ -172,9 +171,6 @@ function ActionPanel({ itemLabel, actions, onDismiss }: ActionPanelProps) {
                       )}
                       <span className="truncate leading-none">{action.label}</span>
                     </span>
-                    {action.shortcut && (
-                      <Kbd className="ml-3 self-center rounded-md px-1 py-px text-xs font-normal">{action.shortcut}</Kbd>
-                    )}
                   </button>
                 </li>
               );
