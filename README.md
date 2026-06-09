@@ -22,11 +22,15 @@ Press the shortcut to open the extension on any non chrome settings page or if y
 
 ## Complete features
 
-- Quickly switch between opened tabs across different chrome windows.
-- Fuzzy search through all saved bookmarks and history and quickly open them.
-- Effortless activate bookmarks (`Tab`) and history (`!`) searching mode.
+- Unified fuzzy search across open tabs, bookmarks, and browser actions in a single list.
+- Quickly switch between opened tabs across different Chrome windows.
+- Toggle History search mode with `Tab` to find and reopen recently visited pages.
+- Contextual action panel (`⌘K` / `Ctrl+K`) with per-item actions: switch to, duplicate, close, open, copy link, and more.
+- Bookmark management — bookmark a tab or history page, move bookmarks between folders, or bookmark directly into a chosen folder.
+- Pin frequently used bookmarks and actions as Favorites, shown at the top when the search is empty.
 - Easy access to browser actions like duplicate tab, open downloads, etc.
-- Dark mode
+- "Search the web" fallback for any query.
+- Multiple themes
 
 ## 🔒 Privacy
 - All operations are performed locally in your browser.
